@@ -27,7 +27,7 @@ jobs:
           security-group-id: ${{ secrets.SG_ID }}
           aws-resource-tags: > # optional, requires additional permissions
             [
-              {"Key": "Name", "Value": "wazuh-ansible-gh-runner-aio"},
+              {"Key": "Name", "Value": "khulnasoft-ansible-gh-runner-aio"},
               {"Key": "GitHubRepository", "Value": "${{ github.repository }}"},
               {"Key": "team", "Value": "CICD"},
               {"Key": "termination_date", "Value": "2022-12-31 21:00:00"}
@@ -48,8 +48,8 @@ jobs:
         uses: actions/setup-python@v2
         with:
           python-version: '3.x'
-      - name: Ansible Playbook run Wazuh AIO Single instance
-        run: ansible-playbook ./.github/playbooks/aio-wazuh.yml
+      - name: Ansible Playbook run Khulnasoft AIO Single instance
+        run: ansible-playbook ./.github/playbooks/aio-khulnasoft.yml
         env:
           PY_COLORS: '1'
           ANSIBLE_FORCE_COLOR: '1'

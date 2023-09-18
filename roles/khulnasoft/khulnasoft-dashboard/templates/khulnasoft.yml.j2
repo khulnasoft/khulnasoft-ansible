@@ -1,0 +1,134 @@
+---
+#
+# Khulnasoft app - App configuration file
+# Copyright (C) 2016, Khulnasoft Inc.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# Find more information about this on the LICENSE file.
+#
+# ======================== Khulnasoft app configuration file ========================
+#
+# Please check the documentation for more information on configuration options:
+# https://documentation.khulnasoft.com/current/installation-guide/index.html
+#
+# Also, you can check our repository:
+# https://github.com/khulnasoft/khulnasoft-dashboard
+#
+# ------------------------------- Index patterns -------------------------------
+#
+# Default index pattern to use.
+#pattern: khulnasoft-alerts-4.x-*
+#
+# ----------------------------------- Checks -----------------------------------
+#
+# Defines which checks must to be consider by the healthcheck
+# step once the Khulnasoft app starts. Values must to be true or false.
+#checks.pattern : true
+#checks.template: true
+#checks.api     : true
+#checks.setup   : true
+#
+# --------------------------------- Extensions ---------------------------------
+#
+# Defines which extensions should be activated when you add a new API entry.
+# You can change them after Khulnasoft app starts.
+# Values must to be true or false.
+#extensions.pci       : true
+#extensions.gdpr      : true
+#extensions.hipaa     : true
+#extensions.nist      : true
+#extensions.audit     : true
+#extensions.oscap     : false
+#extensions.ciscat    : false
+#extensions.aws       : false
+#extensions.virustotal: false
+#extensions.osquery   : false
+#extensions.docker    : false
+#
+# ---------------------------------- Time out ----------------------------------
+#
+# Defines maximum timeout to be used on the Khulnasoft app requests.
+# It will be ignored if it is bellow 1500.
+# It means milliseconds before we consider a request as failed.
+# Default: 20000
+#timeout: 20000
+#
+# ------------------------------ Advanced indices ------------------------------
+#
+# Configure .khulnasoft indices shards and replicas.
+#khulnasoft.shards          : 1
+#khulnasoft.replicas        : 0
+#
+# --------------------------- Index pattern selector ---------------------------
+#
+# Defines if the user is allowed to change the selected
+# index pattern directly from the Khulnasoft app top menu.
+# Default: true
+#ip.selector: true
+#
+# List of index patterns to be ignored
+#ip.ignore: []
+#
+# -------------------------------- X-Pack RBAC ---------------------------------
+#
+# Custom setting to enable/disable built-in X-Pack RBAC security capabilities.
+# Default: enabled
+#xpack.rbac.enabled: true
+#
+# ------------------------------ khulnasoft-monitoring ------------------------------
+#
+# Custom setting to enable/disable khulnasoft-monitoring indices.
+# Values: true, false, worker
+# If worker is given as value, the app will show the Agents status
+# visualization but won't insert data on khulnasoft-monitoring indices.
+# Default: true
+#khulnasoft.monitoring.enabled: true
+#
+# Custom setting to set the frequency for khulnasoft-monitoring indices cron task.
+# Default: 900 (s)
+#khulnasoft.monitoring.frequency: 900
+#
+# Configure khulnasoft-monitoring-4.x-* indices shards and replicas.
+#khulnasoft.monitoring.shards: 2
+#khulnasoft.monitoring.replicas: 0
+#
+# Configure khulnasoft-monitoring-4.x-* indices custom creation interval.
+# Values: h (hourly), d (daily), w (weekly), m (monthly)
+# Default: d
+#khulnasoft.monitoring.creation: d
+#
+# Default index pattern to use for Khulnasoft monitoring
+#khulnasoft.monitoring.pattern: khulnasoft-monitoring-4.x-*
+#
+#
+# ------------------------------- App privileges --------------------------------
+#admin: true
+#
+# ------------------------------- App logging level -----------------------------
+# Set the logging level for the Khulnasoft App log files.
+# Default value: info
+# Allowed values: info, debug
+#logs.level: info
+#
+#-------------------------------- API entries -----------------------------------
+#The following configuration is the default structure to define an API entry.
+#
+#hosts:
+#  - <id>:
+#     url: http(s)://<url>
+#     port: <port>
+#     user: <user>
+#     password: <password>
+
+hosts:
+{% for api in khulnasoft_api_credentials %}
+  - {{ api['id'] }}:
+      url: {{ api['url'] }}
+      port: {{ api['port'] }}
+      username: {{ api['username'] }}
+      password: "{{ api['password'] }}"
+{% endfor %}

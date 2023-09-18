@@ -1,0 +1,5 @@
+---
+- name: restart khulnasoft-indexer
+  service:
+    name: khulnasoft-indexer
+    state: restarted

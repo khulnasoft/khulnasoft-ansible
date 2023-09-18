@@ -1,0 +1,29 @@
+---
+- block:
+
+  - name: RedHat/CentOS/Fedora | Add Khulnasoft dashboard repo
+    yum_repository:
+      file: khulnasoft
+      name: khulnasoft_repo
+      description: Khulnasoft yum repository
+      baseurl: "{{ khulnasoft_repo.yum }}"
+      gpgkey: "{{ khulnasoft_repo.gpg }}"
+      gpgcheck: true
+
+  - name: Install Khulnasoft dashboard dependencies
+    yum:
+      name: [
+        'libnss3.so', 'xorg-x11-fonts-100dpi', 'xorg-x11-fonts-75dpi', 'xorg-x11-utils', 'xorg-x11-fonts-cyrillic', 'xorg-x11-fonts-Type1', 'xorg-x11-fonts-misc', 'fontconfig', 'freetype'
+      ]
+      state: present
+    ignore_errors: yes
+
+  - name: Install Khulnasoft dashboard
+    package:
+      name: "khulnasoft-dashboard-{{ dashboard_version }}"
+      state: present
+      update_cache: yes
+    register: install
+
+  tags:
+    - install

@@ -1,0 +1,99 @@
+---
+- include_vars: ../../vars/repo_vars.yml
+
+- include_vars: ../../vars/repo.yml
+  when: packages_repository == 'production'
+
+- include_vars: ../../vars/repo_pre-release.yml
+  when: packages_repository == 'pre-release'
+
+- include_vars: ../../vars/repo_staging.yml
+  when: packages_repository == 'staging'
+
+- import_tasks: RedHat.yml
+  when: ansible_os_family == 'RedHat'
+
+- import_tasks: Debian.yml
+  when: ansible_os_family == 'Debian'
+
+- name: Remove Dashboard configuration file
+  file:
+    # noqa 503
+    path: "{{ dashboard_conf_path }}/opensearch_dashboards.yml"
+    state: absent
+  tags: install
+
+- import_tasks: security_actions.yml
+
+- name: Copy Configuration File
+  template:
+    src: "templates/opensearch_dashboards.yml.j2"
+    dest: "{{ dashboard_conf_path }}/opensearch_dashboards.yml"
+    group: khulnasoft-dashboard
+    owner: khulnasoft-dashboard
+    mode: 0640
+    force: yes
+  notify: restart khulnasoft-dashboard
+  tags:
+    - install
+    - configure
+
+- name: Ensuring Khulnasoft dashboard directory owner
+  file:
+    # noqa 208
+    path: "/usr/share/khulnasoft-dashboard"
+    state: directory
+    owner: khulnasoft-dashboard
+    group: khulnasoft-dashboard
+    recurse: yes
+
+- name: Wait for Khulnasoft-Indexer port
+  wait_for: host={{ indexer_network_host }} port={{ indexer_http_port }}
+
+- name: Select correct API protocol
+  set_fact:
+    indexer_api_protocol: "{% if dashboard_security is defined and dashboard_security %}https{% else %}http{% endif %}"
+
+- name: Attempting to delete legacy Khulnasoft index if exists
+  uri:
+    url: "{{ indexer_api_protocol }}://{{ indexer_network_host }}:{{ indexer_http_port }}/.khulnasoft"
+    method: DELETE
+    user: "admin"
+    password: "{{ indexer_admin_password }}"
+    validate_certs: no
+    status_code: 200, 404
+
+- name: Create Khulnasoft Plugin config directory
+  file:
+    path: /usr/share/khulnasoft-dashboard/data/khulnasoft/config/
+    state: directory
+    recurse: yes
+    owner: khulnasoft-dashboard
+    group: khulnasoft-dashboard
+    mode: 0751
+  changed_when: False
+
+- name: Configure Khulnasoft Dashboard Plugin
+  template:
+    src: khulnasoft.yml.j2
+    dest: /usr/share/khulnasoft-dashboard/data/khulnasoft/config/khulnasoft.yml
+    owner: khulnasoft-dashboard
+    group: khulnasoft-dashboard
+    mode: 0751
+  changed_when: False
+
+- name: Configure opensearch.password in opensearch_dashboards.keystore
+  shell: >-
+    echo '{{ dashboard_password }}' | /usr/share/khulnasoft-dashboard/bin/opensearch-dashboards-keystore --allow-root add -f --stdin opensearch.password
+  args:
+    executable: /bin/bash
+  become: yes
+
+- name: Ensure Khulnasoft dashboard started and enabled
+  service:
+    name: khulnasoft-dashboard
+    enabled: true
+    state: started
+
+- import_tasks: RMRedHat.yml
+  when: ansible_os_family == 'RedHat'

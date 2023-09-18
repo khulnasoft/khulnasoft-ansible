@@ -1,0 +1,15 @@
+---
+
+- name: Debian/Ubuntu | Remove Khulnasoft repository.
+  apt_repository:
+    repo: "{{ khulnasoft_manager_config.repo.apt }}"
+    state: absent
+  changed_when: false
+  when: ansible_os_family == "Debian"
+
+- name: RedHat/CentOS/Fedora | Remove Khulnasoft repository (and clean up left-over metadata)
+  yum_repository:
+    name: khulnasoft_repo
+    state: absent
+  changed_when: false
+  when: ansible_os_family == "RedHat" or ansible_os_family == "Amazon"

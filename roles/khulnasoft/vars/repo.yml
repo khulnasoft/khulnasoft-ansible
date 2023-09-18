@@ -1,0 +1,13 @@
+khulnasoft_repo:
+  apt: 'deb https://packages.khulnasoft.com/4.x/apt/ stable main'
+  yum: 'https://packages.khulnasoft.com/4.x/yum/'
+  gpg: 'https://packages.khulnasoft.com/key/GPG-KEY-WAZUH'
+  key_id: '0DCFCA5547B19D2A6099506096B3EE5F29111145'
+khulnasoft_winagent_config_url: "https://packages.khulnasoft.com/4.x/windows/khulnasoft-agent-{{ khulnasoft_agent_version }}-1.msi"
+khulnasoft_winagent_package_name: "khulnasoft-agent-{{ khulnasoft_agent_version }}-1.msi"
+khulnasoft_winagent_sha512_url: "https://packages.khulnasoft.com/4.x/checksums/khulnasoft/{{ khulnasoft_agent_version }}/khulnasoft-agent-{{ khulnasoft_agent_version }}-1.msi.sha512"
+
+certs_gen_tool_version: 4.8
+
+# Url of certificates generator tool
+certs_gen_tool_url: "https://packages.khulnasoft.com/{{ certs_gen_tool_version }}/khulnasoft-certs-tool.sh"

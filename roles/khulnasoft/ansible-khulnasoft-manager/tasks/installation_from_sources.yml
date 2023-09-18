@@ -1,0 +1,125 @@
+---
+# Khulnasoft Manager
+  - name: Check if Khulnasoft Manager is already installed
+    stat:
+      path: "{{ khulnasoft_dir }}/bin/khulnasoft-control"
+    register: khulnasoft_control_path
+
+  - name: Installing Khulnasoft Manager from sources
+    block:
+      - name: Install dependencies to build Khulnasoft packages
+        package:
+          name:
+            - make
+            - gcc
+            - automake
+            - autoconf
+            - libtool
+            - tar
+          state: present
+
+      - name: Install CMake 
+        include_tasks: install_cmake.yml
+
+      - name: Removing old files
+        file:
+          path: "/tmp/{{ khulnasoft_manager_sources_installation.branch }}.tar.gz"
+          state: absent
+
+      - name: Removing old folders
+        file:
+          path: "/tmp/khulnasoft-{{ khulnasoft_manager_sources_installation.branch }}"
+          state: absent
+
+      - name: Installing policycoreutils-python (RedHat families)
+        package:
+          name:
+            - policycoreutils-python
+        when:
+          - ansible_os_family|lower == "redhat"
+
+      - name: Installing policycoreutils-python-utils (Debian families)
+        package:
+          name:
+            - libc6-dev
+            - curl
+            - policycoreutils
+        when:
+          - ansible_os_family|lower == "debian"
+
+      - name: Remove old repository folder
+        file:
+          path: /tmp/khulnasoft-{{ khulnasoft_manager_sources_installation.branch }}
+          state: absent
+
+      - name: Download required packages from github.com/khulnasoft/khulnasoft
+        get_url:
+          url: "https://github.com/khulnasoft/khulnasoft/archive/{{ khulnasoft_manager_sources_installation.branch }}.tar.gz"
+          dest: "/tmp/{{ khulnasoft_manager_sources_installation.branch }}.tar.gz"
+        delegate_to: "{{ inventory_hostname }}"
+
+      - name: Create folder to extract Khulnasoft branch
+        file:
+          path: "/tmp/khulnasoft-{{ khulnasoft_manager_sources_installation.branch }}"
+          owner: root
+          group: root
+          mode: 0644
+          state: directory
+
+    # When downloading "v3.11.0" extracted folder name is 3.11.0.
+
+    # Explicitly creating the folder with proper naming and striping first level in .tar.gz file
+
+      - name: Extract downloaded Khulnasoft branch from Github # Using shell instead of unarchive due to that module not working properlyh with --strip
+        command: >-
+          tar -xzvf /tmp/{{ khulnasoft_manager_sources_installation.branch }}.tar.gz
+          --strip 1
+          --directory /tmp/khulnasoft-{{ khulnasoft_manager_sources_installation.branch }}
+        register: khulnasoft_untar
+        changed_when: khulnasoft_untar.rc ==0
+        args:
+          warn: false
+
+      - name: Clean remaining files from others builds
+        command: "make -C src {{ item }}"
+        args:
+          chdir: "/tmp/khulnasoft-{{ khulnasoft_manager_sources_installation.branch }}/src/"
+        with_items:
+          - "clean"
+          - "clean-deps"
+        register: clean_result
+        changed_when: clean_result.rc == 0
+        failed_when: false
+
+      - name: Render the "preloaded-vars.conf" file
+        template:
+          src: "templates/preloaded_vars_manager.conf.j2"
+          dest: "/tmp/khulnasoft-{{ khulnasoft_manager_sources_installation.branch }}/etc/preloaded-vars.conf"
+          owner: root
+          group: root
+          mode: 0644
+
+      - name: Executing "install.sh" script to build and install the Khulnasoft Manager
+        shell: ./install.sh > /tmp/build_khulnasoft_manager_log.txt
+        register: installation_result
+        changed_when: installation_result == 0
+        args:
+          chdir: "/tmp/khulnasoft-{{ khulnasoft_manager_sources_installation.branch }}"
+        environment:
+          PATH: /usr/local/bin:{{ ansible_env.PATH }}
+
+      - name: Cleanup downloaded files
+        file:
+          path: "/tmp/{{ khulnasoft_manager_sources_installation.branch }}.tar.gz"
+          state: absent
+
+      - name: Cleanup created folders
+        file:
+          path: "/tmp/khulnasoft-{{ khulnasoft_manager_sources_installation.branch }}"
+          state: absent
+
+    when:
+      - not khulnasoft_control_path.stat.exists
+      - khulnasoft_manager_sources_installation.enabled
+    tags:
+      - manager

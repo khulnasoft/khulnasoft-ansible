@@ -1,0 +1,6 @@
+---
+- name: Remove Khulnasoft repository (and clean up left-over metadata)
+  apt_repository:
+    repo: "{{ khulnasoft_agent_config.repo.apt }}"
+    state: absent
+  changed_when: false

@@ -1,10 +1,10 @@
 *.retry
-wazuh-agent.yml
-wazuh-elastic_stack-distributed.yml
-wazuh-elastic_stack-single.yml
-wazuh-elastic.yml
-wazuh-kibana.yml
-wazuh-manager.yml
+khulnasoft-agent.yml
+khulnasoft-elastic_stack-distributed.yml
+khulnasoft-elastic_stack-single.yml
+khulnasoft-elastic.yml
+khulnasoft-kibana.yml
+khulnasoft-manager.yml
 *.pyc
 .mypy_cache
 Pipfile.lock

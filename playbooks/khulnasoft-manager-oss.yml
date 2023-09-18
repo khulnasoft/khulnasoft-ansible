@@ -1,0 +1,9 @@
+---
+- hosts: managers
+  roles:
+    - role: ../roles/khulnasoft/ansible-khulnasoft-manager
+    - role: ../roles/khulnasoft/ansible-filebeat-oss
+      filebeat_output_indexer_hosts:
+      - "<indexer-node-1>:9200"
+      - "<indexer-node-2>:9200"
+      - "<indexer-node-2>:9200"

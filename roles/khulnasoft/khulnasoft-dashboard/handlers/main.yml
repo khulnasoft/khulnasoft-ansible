@@ -1,0 +1,3 @@
+---
+- name: restart khulnasoft-dashboard
+  service: name=khulnasoft-dashboard state=restarted

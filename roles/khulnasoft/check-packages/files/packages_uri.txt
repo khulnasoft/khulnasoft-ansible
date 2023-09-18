@@ -1,0 +1,6 @@
+yum/khulnasoft-manager-VERSION-1.x86_64.rpm
+apt/pool/main/w/khulnasoft-manager/khulnasoft-manager_VERSION-1_amd64.deb
+yum/khulnasoft-dashboard-VERSION-1.x86_64.rpm
+yum/khulnasoft-indexer-VERSION-1.x86_64.rpm
+apt/pool/main/w/khulnasoft-agent/khulnasoft-agent_VERSION-1_amd64.deb
+yum/khulnasoft-agent-VERSION-1.x86_64.rpm

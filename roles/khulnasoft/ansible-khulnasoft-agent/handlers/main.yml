@@ -1,0 +1,6 @@
+---
+- name: restart khulnasoft-agent
+  service: name=khulnasoft-agent state=restarted enabled=yes
+
+- name: Windows | Restart Khulnasoft Agent
+  win_service: name=KhulnasoftSvc start_mode=auto state=restarted

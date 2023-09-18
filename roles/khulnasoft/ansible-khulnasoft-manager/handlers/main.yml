@@ -1,0 +1,12 @@
+---
+- name: restart khulnasoft-manager
+  service:
+    name: khulnasoft-manager
+    state: restarted
+    enabled: true
+
+- name: restart khulnasoft-api
+  service:
+    name: khulnasoft-api
+    state: restarted
+    enabled: true

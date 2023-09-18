@@ -1,20 +1,20 @@
-# Wazuh-Ansible
+# Khulnasoft-Ansible
 
-[![Slack](https://img.shields.io/badge/slack-join-blue.svg)](https://wazuh.com/community/join-us-on-slack/)
-[![Email](https://img.shields.io/badge/email-join-blue.svg)](https://groups.google.com/forum/#!forum/wazuh)
-[![Documentation](https://img.shields.io/badge/docs-view-green.svg)](https://documentation.wazuh.com)
-[![Documentation](https://img.shields.io/badge/web-view-green.svg)](https://wazuh.com)
+[![Slack](https://img.shields.io/badge/slack-join-blue.svg)](https://khulnasoft.com/community/join-us-on-slack/)
+[![Email](https://img.shields.io/badge/email-join-blue.svg)](https://groups.google.com/forum/#!forum/khulnasoft)
+[![Documentation](https://img.shields.io/badge/docs-view-green.svg)](https://documentation.khulnasoft.com)
+[![Documentation](https://img.shields.io/badge/web-view-green.svg)](https://khulnasoft.com)
 
-These playbooks install and configure Wazuh agent, manager and indexer and dashboard.
+These playbooks install and configure Khulnasoft agent, manager and indexer and dashboard.
 
 ## Branches
 
 - `master` branch contains the latest code, be aware of possible bugs on this branch.
-- `stable` branch on correspond to the last Wazuh stable version.
+- `stable` branch on correspond to the last Khulnasoft stable version.
 
 ## Compatibility Matrix
 
-| Wazuh version | Elastic | ODFE   |
+| Khulnasoft version | Elastic | ODFE   |
 |---------------|---------|--------|
 | v4.8.0        |         |        |
 | v4.7.0        |         |        |
@@ -57,30 +57,30 @@ These playbooks install and configure Wazuh agent, manager and indexer and dashb
 
 ## Documentation
 
-- [Wazuh Ansible documentation](https://documentation.wazuh.com/current/deploying-with-ansible/index.html)
-- [Full documentation](http://documentation.wazuh.com)
+- [Khulnasoft Ansible documentation](https://documentation.khulnasoft.com/current/deploying-with-ansible/index.html)
+- [Full documentation](http://documentation.khulnasoft.com)
 
 ## Directory structure
 
-    ├── wazuh-ansible
+    ├── khulnasoft-ansible
     │ ├── roles
-    │ │ ├── wazuh
+    │ │ ├── khulnasoft
     │ │ │ ├── ansible-filebeat-oss
-    │ │ │ ├── ansible-wazuh-manager
-    │ │ │ ├── ansible-wazuh-agent
-    │ │ │ ├── wazuh-dashboard
-    │ │ │ ├── wazuh-indexer
+    │ │ │ ├── ansible-khulnasoft-manager
+    │ │ │ ├── ansible-khulnasoft-agent
+    │ │ │ ├── khulnasoft-dashboard
+    │ │ │ ├── khulnasoft-indexer
     │ │
     │ │ ├── ansible-galaxy
     │ │ │ ├── meta
     │
     │ ├── playbooks
-    │ │ ├── wazuh-agent.yml
-    │ │ ├── wazuh-dashboard.yml
-    │ │ ├── wazuh-indexer.yml
-    │ │ ├── wazuh-manager-oss.yml
-    | | ├── wazuh-production-ready
-    │ │ ├── wazuh-single.yml
+    │ │ ├── khulnasoft-agent.yml
+    │ │ ├── khulnasoft-dashboard.yml
+    │ │ ├── khulnasoft-indexer.yml
+    │ │ ├── khulnasoft-manager-oss.yml
+    | | ├── khulnasoft-production-ready
+    │ │ ├── khulnasoft-single.yml
     │
     │ ├── README.md
     │ ├── VERSION
@@ -90,14 +90,14 @@ These playbooks install and configure Wazuh agent, manager and indexer and dashb
 
 ### Playbook
 
-The hereunder example playbook uses the `wazuh-ansible` role to provision a production-ready Wazuh environment. The architecture includes 2 Wazuh nodes, 3 Wazuh indexer nodes and a mixed Wazuh dashboard node (Wazuh indexer data node + Wazuh dashboard).
+The hereunder example playbook uses the `khulnasoft-ansible` role to provision a production-ready Khulnasoft environment. The architecture includes 2 Khulnasoft nodes, 3 Khulnasoft indexer nodes and a mixed Khulnasoft dashboard node (Khulnasoft indexer data node + Khulnasoft dashboard).
 
 ```yaml
 ---
 # Certificates generation
     - hosts: wi1
       roles:
-        - role: ../roles/wazuh/wazuh-indexer
+        - role: ../roles/khulnasoft/khulnasoft-indexer
           indexer_network_host: "{{ private_ip }}"
           indexer_cluster_nodes:
             - "{{ hostvars.wi1.private_ip }}"
@@ -127,12 +127,12 @@ The hereunder example playbook uses the `wazuh-ansible` role to provision a prod
           node4:
             name: node-4
             ip: "{{ hostvars.manager.private_ip }}"
-            role: wazuh
+            role: khulnasoft
             node_type: master
           node5:
             name: node-5
             ip: "{{ hostvars.worker.private_ip }}"
-            role: wazuh
+            role: khulnasoft
             node_type: worker
           node6:
             name: node-6
@@ -141,11 +141,11 @@ The hereunder example playbook uses the `wazuh-ansible` role to provision a prod
       tags:
         - generate-certs
 
-# Wazuh indexer cluster
+# Khulnasoft indexer cluster
     - hosts: wi_cluster
       strategy: free
       roles:
-        - role: ../roles/wazuh/wazuh-indexer
+        - role: ../roles/khulnasoft/khulnasoft-indexer
           indexer_network_host: "{{ private_ip }}"
       become: yes
       become_user: root
@@ -175,28 +175,28 @@ The hereunder example playbook uses the `wazuh-ansible` role to provision a prod
           node4:
             name: node-4
             ip: "{{ hostvars.manager.private_ip }}"
-            role: wazuh
+            role: khulnasoft
             node_type: master
           node5:
             name: node-5
             ip: "{{ hostvars.worker.private_ip }}"
-            role: wazuh
+            role: khulnasoft
             node_type: worker
           node6:
             name: node-6
             ip: "{{ hostvars.dashboard.private_ip }}"
             role: dashboard
 
-# Wazuh cluster
+# Khulnasoft cluster
     - hosts: manager
       roles:
-        - role: "../roles/wazuh/ansible-wazuh-manager"
-        - role: "../roles/wazuh/ansible-filebeat-oss"
+        - role: "../roles/khulnasoft/ansible-khulnasoft-manager"
+        - role: "../roles/khulnasoft/ansible-filebeat-oss"
           filebeat_node_name: node-4
       become: yes
       become_user: root
       vars:
-        wazuh_manager_config:
+        khulnasoft_manager_config:
           connection:
               - type: 'secure'
                 port: '1514'
@@ -212,7 +212,7 @@ The hereunder example playbook uses the `wazuh-ansible` role to provision a prod
               nodes:
                   - "{{ hostvars.manager.private_ip }}"
               hidden: 'no'
-        wazuh_api_users:
+        khulnasoft_api_users:
           - username: custom-user
             password: SecretPassword1!
         filebeat_output_indexer_hosts:
@@ -222,13 +222,13 @@ The hereunder example playbook uses the `wazuh-ansible` role to provision a prod
 
     - hosts: worker
       roles:
-        - role: "../roles/wazuh/ansible-wazuh-manager"
-        - role: "../roles/wazuh/ansible-filebeat-oss"
+        - role: "../roles/khulnasoft/ansible-khulnasoft-manager"
+        - role: "../roles/khulnasoft/ansible-filebeat-oss"
           filebeat_node_name: node-5
       become: yes
       become_user: root
       vars:
-        wazuh_manager_config:
+        khulnasoft_manager_config:
           connection:
               - type: 'secure'
                 port: '1514'
@@ -252,8 +252,8 @@ The hereunder example playbook uses the `wazuh-ansible` role to provision a prod
 # Indexer + dashboard node
     - hosts: dashboard
       roles:
-        - role: "../roles/wazuh/wazuh-indexer"
-        - role: "../roles/wazuh/wazuh-dashboard"
+        - role: "../roles/khulnasoft/khulnasoft-indexer"
+        - role: "../roles/khulnasoft/khulnasoft-dashboard"
       become: yes
       become_user: root
       vars:
@@ -271,7 +271,7 @@ The hereunder example playbook uses the `wazuh-ansible` role to provision a prod
             - "{{ hostvars.wi2.private_ip }}"
             - "{{ hostvars.wi3.private_ip }}"
         dashboard_node_name: node-6
-        wazuh_api_credentials:
+        khulnasoft_api_credentials:
           - id: default
             url: https://{{ hostvars.manager.private_ip }}
             port: 55000
@@ -293,12 +293,12 @@ The hereunder example playbook uses the `wazuh-ansible` role to provision a prod
           node4:
             name: node-4
             ip: "{{ hostvars.manager.private_ip }}"
-            role: wazuh
+            role: khulnasoft
             node_type: master
           node5:
             name: node-5
             ip: "{{ hostvars.worker.private_ip }}"
-            role: wazuh
+            role: khulnasoft
             node_type: worker
           node6:
             name: node-6
@@ -336,23 +336,23 @@ ansible_ssh_extra_args='-o StrictHostKeyChecking=no'
 ### Launching the playbook
 
 ```bash
-sudo ansible-playbook wazuh-production-ready.yml -i inventory
+sudo ansible-playbook khulnasoft-production-ready.yml -i inventory
 ```
 
-After the playbook execution, the Wazuh UI should be reachable through `https://<dashboard_host>`
+After the playbook execution, the Khulnasoft UI should be reachable through `https://<dashboard_host>`
 
 ## Example: single-host environment
 
 ### Playbook
 
-The hereunder example playbook uses the `wazuh-ansible` role to provision a single-host Wazuh environment. This architecture includes all the Wazuh and Opensearch components in a single node.
+The hereunder example playbook uses the `khulnasoft-ansible` role to provision a single-host Khulnasoft environment. This architecture includes all the Khulnasoft and Opensearch components in a single node.
 
 ```yaml
 ---
 # Certificates generation
   - hosts: aio
     roles:
-      - role: ../roles/wazuh/wazuh-indexer
+      - role: ../roles/khulnasoft/khulnasoft-indexer
         perform_installation: false
     become: no
     #become_user: root
@@ -370,10 +370,10 @@ The hereunder example playbook uses the `wazuh-ansible` role to provision a sing
     become: yes
     become_user: root
     roles:
-      - role: ../roles/wazuh/wazuh-indexer
-      - role: ../roles/wazuh/ansible-wazuh-manager
-      - role: ../roles/wazuh/ansible-filebeat-oss
-      - role: ../roles/wazuh/wazuh-dashboard
+      - role: ../roles/khulnasoft/khulnasoft-indexer
+      - role: ../roles/khulnasoft/ansible-khulnasoft-manager
+      - role: ../roles/khulnasoft/ansible-filebeat-oss
+      - role: ../roles/khulnasoft/khulnasoft-dashboard
     vars:
       single_node: true
       minimum_master_nodes: 1
@@ -405,27 +405,27 @@ ansible_ssh_extra_args='-o StrictHostKeyChecking=no'
 ### Launching the playbook
 
 ```bash
-sudo ansible-playbook wazuh-single.yml -i inventory
+sudo ansible-playbook khulnasoft-single.yml -i inventory
 ```
 
-After the playbook execution, the Wazuh UI should be reachable through `https://<your server host>`
+After the playbook execution, the Khulnasoft UI should be reachable through `https://<your server host>`
 
-## Example: Wazuh server cluster (without Filebeat)
+## Example: Khulnasoft server cluster (without Filebeat)
 
 ### Playbook
 
-The hereunder example playbook uses the `wazuh-ansible` role to provision a Wazuh server cluster without Filebeat. This architecture includes 2 Wazuh servers distributed in two different nodes.
+The hereunder example playbook uses the `khulnasoft-ansible` role to provision a Khulnasoft server cluster without Filebeat. This architecture includes 2 Khulnasoft servers distributed in two different nodes.
 
 ```yaml
 ---
-# Wazuh cluster without Filebeat
+# Khulnasoft cluster without Filebeat
     - hosts: manager
       roles:
-        - role: "../roles/wazuh/ansible-wazuh-manager"
+        - role: "../roles/khulnasoft/ansible-khulnasoft-manager"
       become: yes
       become_user: root
       vars:
-        wazuh_manager_config:
+        khulnasoft_manager_config:
           connection:
               - type: 'secure'
                 port: '1514'
@@ -441,17 +441,17 @@ The hereunder example playbook uses the `wazuh-ansible` role to provision a Wazu
               nodes:
                   - "{{ hostvars.manager.private_ip }}"
               hidden: 'no'
-        wazuh_api_users:
+        khulnasoft_api_users:
           - username: custom-user
             password: SecretPassword1!
 
     - hosts: worker01
       roles:
-        - role: "../roles/wazuh/ansible-wazuh-manager"
+        - role: "../roles/khulnasoft/ansible-khulnasoft-manager"
       become: yes
       become_user: root
       vars:
-        wazuh_manager_config:
+        khulnasoft_manager_config:
           connection:
               - type: 'secure'
                 port: '1514'
@@ -491,11 +491,11 @@ Add the following block at the end of the playbook
 ```yaml
     - hosts: worker02
       roles:
-        - role: "../roles/wazuh/ansible-wazuh-manager"
+        - role: "../roles/khulnasoft/ansible-khulnasoft-manager"
       become: yes
       become_user: root
       vars:
-        wazuh_manager_config:
+        khulnasoft_manager_config:
           connection:
               - type: 'secure'
                 port: '1514'
@@ -513,7 +513,7 @@ Add the following block at the end of the playbook
               hidden: 'no'
 ```
 
-NOTE: `hosts` and `wazuh_manager_config.cluster_node_name` are the only parameters that differ from the `worker01` configuration.
+NOTE: `hosts` and `khulnasoft_manager_config.cluster_node_name` are the only parameters that differ from the `worker01` configuration.
 
 Add the following lines to the inventory file:
 
@@ -525,18 +525,18 @@ Add the following lines to the inventory file:
 ### Launching the playbook
 
 ```bash
-sudo ansible-playbook wazuh-manager-oss-cluster.yml -i inventory
+sudo ansible-playbook khulnasoft-manager-oss-cluster.yml -i inventory
 ```
 
 ## Contribute
 
 If you want to contribute to our repository, please fork our Github repository and submit a pull request.
 
-If you are not familiar with Github, you can also share them through [our users mailing list](https://groups.google.com/d/forum/wazuh), to which you can subscribe by sending an email to `wazuh+subscribe@googlegroups.com`.
+If you are not familiar with Github, you can also share them through [our users mailing list](https://groups.google.com/d/forum/khulnasoft), to which you can subscribe by sending an email to `khulnasoft+subscribe@googlegroups.com`.
 
-### Modified by Wazuh
+### Modified by Khulnasoft
 
-The playbooks have been modified by Wazuh, including some specific requirements, templates and configuration to improve integration with Wazuh ecosystem.
+The playbooks have been modified by Khulnasoft, including some specific requirements, templates and configuration to improve integration with Khulnasoft ecosystem.
 
 ## Credits and Thank you
 
@@ -547,8 +547,8 @@ https://github.com/dj-wasabi/ansible-ossec-server
 ## License and copyright
 
 WAZUH
-Copyright (C) 2016, Wazuh Inc.  (License GPLv2)
+Copyright (C) 2016, Khulnasoft Inc.  (License GPLv2)
 
 ## Web references
 
-- [Wazuh website](http://wazuh.com)
+- [Khulnasoft website](http://khulnasoft.com)

@@ -1,0 +1,50 @@
+---
+# Khulnasoft cluster without Filebeat
+    - hosts: manager
+      roles:
+        - role: "../roles/khulnasoft/ansible-khulnasoft-manager"
+      become: yes
+      become_user: root
+      vars:
+        khulnasoft_manager_config:
+          connection:
+              - type: 'secure'
+                port: '1514'
+                protocol: 'tcp'
+                queue_size: 131072
+          api:
+              https: 'yes'
+          cluster:
+              disable: 'no'
+              node_name: 'master'
+              node_type: 'master'
+              key: 'c98b62a9b6169ac5f67dae55ae4a9088'
+              nodes:
+                  - "{{ hostvars.manager.private_ip }}"
+              hidden: 'no'
+        khulnasoft_api_users:
+          - username: custom-user
+            password: SecretPassword1!
+
+    - hosts: worker01
+      roles:
+        - role: "../roles/khulnasoft/ansible-khulnasoft-manager"
+      become: yes
+      become_user: root
+      vars:
+        khulnasoft_manager_config:
+          connection:
+              - type: 'secure'
+                port: '1514'
+                protocol: 'tcp'
+                queue_size: 131072
+          api:
+              https: 'yes'
+          cluster:
+              disable: 'no'
+              node_name: 'worker_01'
+              node_type: 'worker'
+              key: 'c98b62a9b6169ac5f67dae55ae4a9088'
+              nodes:
+                  - "{{ hostvars.manager.private_ip }}"
+              hidden: 'no'

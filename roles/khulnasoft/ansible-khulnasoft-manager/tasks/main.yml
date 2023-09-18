@@ -1,0 +1,339 @@
+---
+
+- name: "Install dependencies"
+  package:
+    name:
+      - unzip
+      - openssl
+      - tar
+      - curl
+    state: present
+  register: package_status
+  until: "package_status is not failed"  
+  retries: 10
+  delay: 10
+
+- include_vars: ../../vars/repo_vars.yml
+
+- include_vars: ../../vars/repo.yml
+  when: packages_repository == 'production'
+
+- include_vars: ../../vars/repo_pre-release.yml
+  when: packages_repository == 'pre-release'
+
+- include_vars: ../../vars/repo_staging.yml
+  when: packages_repository == 'staging'
+
+- name: Overlay khulnasoft_manager_config on top of defaults
+  set_fact:
+    khulnasoft_manager_config: '{{ khulnasoft_manager_config_defaults | combine(config_layer, recursive=True) }}'
+  vars:
+    config_layer: '{{ khulnasoft_manager_config | default({}) }}'
+  when: khulnasoft_manager_config_overlay | bool
+
+- include_tasks: "RedHat.yml"
+  when: (ansible_os_family == "RedHat" and ansible_distribution_major_version|int > 5) or (ansible_os_family  == "RedHat" and ansible_distribution == "Amazon")
+
+- include_tasks: "Debian.yml"
+  when: ansible_os_family == "Debian"
+
+- name: Install expect
+  package:
+    name: expect
+    state: "{{ khulnasoft_manager_package_state }}"
+  when:
+    - not (ansible_os_family|lower == "redhat" and ansible_distribution_major_version|int < 6) and
+      not (ansible_distribution|lower == "centos" and ansible_distribution_major_version|int == 8)
+  tags: init
+
+- name: Generate SSL files for authd
+  command: "openssl req -x509 -sha256 -nodes -days 365 -newkey rsa:1825 -keyout sslmanager.key -out sslmanager.cert -subj /CN={{ khulnasoft_manager_fqdn }}/"
+  args:
+    creates: sslmanager.cert
+    chdir: "{{ khulnasoft_dir }}/etc/"
+  tags:
+    - config
+  when: khulnasoft_manager_config.authd.ssl_agent_ca is not none
+
+- name: Copy CA, SSL key and cert for authd
+  copy:
+    src: "{{ item }}"
+    dest: "{{ khulnasoft_dir }}/etc/{{ item }}"
+    mode: 0644
+  with_items:
+    - "{{ khulnasoft_manager_config.authd.ssl_agent_ca }}"
+    - "{{ khulnasoft_manager_config.authd.ssl_manager_cert }}"
+    - "{{ khulnasoft_manager_config.authd.ssl_manager_key }}"
+  tags:
+    - config
+  when: khulnasoft_manager_config.authd.ssl_agent_ca is not none
+
+- name: Verifying for old init authd service
+  stat: path=/etc/init.d/ossec-authd
+  register: old_authd_service
+  tags:
+    - config
+
+- name: Verifying for old systemd authd service
+  stat: path=/lib/systemd/system/ossec-authd.service
+  register: old_authd_service
+  tags:
+    - config
+
+- name: Ensure ossec-authd service is disabled
+  service: name=ossec-authd enabled=no state=stopped
+  when: old_authd_service.stat.exists
+  tags:
+    - config
+
+- name: Removing old init authd services
+  file: path="{{ item }}" state=absent
+  with_items:
+    - "/etc/init.d/ossec-authd"
+    - "/lib/systemd/system/ossec-authd.service"
+  when: old_authd_service.stat.exists
+  tags:
+    - config
+
+- name: Installing the local_rules.xml (default local_rules.xml)
+  template: src=var-ossec-rules-local_rules.xml.j2
+            dest="{{ khulnasoft_dir }}/etc/rules/local_rules.xml"
+            owner=khulnasoft
+            group=khulnasoft
+            mode=0640
+  notify: restart khulnasoft-manager
+  tags:
+    - init
+    - config
+    - rules
+
+- name: Adding local rules files
+  copy: src="{{ khulnasoft_manager_config.ruleset.rules_path }}"
+        dest="{{ khulnasoft_dir }}/etc/rules/"
+        owner=khulnasoft
+        group=khulnasoft
+        mode=0640
+  notify: restart khulnasoft-manager
+  tags:
+    - init
+    - config
+    - rules
+
+- name: Installing the local_decoder.xml
+  template: src=var-ossec-rules-local_decoder.xml.j2
+            dest="{{ khulnasoft_dir }}/etc/decoders/local_decoder.xml"
+            owner=khulnasoft
+            group=khulnasoft
+            mode=0640
+  notify: restart khulnasoft-manager
+  tags:
+    - init
+    - config
+    - rules
+
+- name: Adding local decoders files
+  copy: src="{{ khulnasoft_manager_config.ruleset.decoders_path }}"
+        dest="{{ khulnasoft_dir }}/etc/decoders/"
+        owner=khulnasoft
+        group=khulnasoft
+        mode=0640
+  notify: restart khulnasoft-manager
+  tags:
+    - init
+    - config
+    - rules
+
+- name: Configure the shared-agent.conf
+  template:
+    src: var-ossec-etc-shared-agent.conf.j2
+    dest: "{{ khulnasoft_dir }}/etc/shared/default/agent.conf"
+    owner: khulnasoft
+    group: khulnasoft
+    mode: 0640
+    validate: "{{ khulnasoft_dir }}/bin/verify-agent-conf -f %s"
+  notify: restart khulnasoft-manager
+  tags:
+    - init
+    - config
+  when:
+    - shared_agent_config is defined
+
+- name: Installing the local_internal_options.conf
+  template: src=var-ossec-etc-local-internal-options.conf.j2
+            dest="{{ khulnasoft_dir }}/etc/local_internal_options.conf"
+            owner=root
+            group=khulnasoft
+            mode=0640
+  notify: restart khulnasoft-manager
+  tags:
+    - init
+    - config
+
+- name: Retrieving Agentless Credentials
+  include_vars: agentless_creds.yml
+  tags:
+    - config
+
+- name: Retrieving authd Credentials
+  include_vars: authd_pass.yml
+  tags:
+    - config
+
+- name: Check if syslog output is enabled
+  set_fact: syslog_output=true
+  when: item.server is not none
+  with_items:
+    - "{{ khulnasoft_manager_config.syslog_outputs }}"
+  tags:
+    - config
+
+- name: Check if client-syslog is enabled
+  shell: |
+    set -o pipefail
+    "grep -c 'ossec-csyslogd' {{ khulnasoft_dir }}/bin/.process_list | xargs echo"
+  args:
+    removes: "{{ khulnasoft_dir }}/bin/.process_list"
+    executable: /bin/bash
+  changed_when: false
+  check_mode: false
+  register: csyslog_enabled
+  tags:
+    - config
+
+- name: Enable client-syslog
+  command: "{{ khulnasoft_dir }}/bin/khulnasoft-control enable client-syslog"
+  notify: restart khulnasoft-manager
+  when:
+    - csyslog_enabled.stdout == '0' or "skipped" in csyslog_enabled.stdout
+    - syslog_output is defined and syslog_output
+  tags:
+    - config
+
+- name: Check if ossec-agentlessd is enabled
+  shell: |
+    set -o pipefail
+    "grep -c 'ossec-agentlessd' {{ khulnasoft_dir }}/bin/.process_list | xargs echo"
+  args:
+    removes: "{{ khulnasoft_dir }}/bin/.process_list"
+    executable: /bin/bash
+  changed_when: false
+  check_mode: false
+  register: agentlessd_enabled
+  tags:
+    - config
+
+- name: Enable ossec-agentlessd
+  command: "{{ khulnasoft_dir }}/bin/khulnasoft-control enable agentless"
+  notify: restart khulnasoft-manager
+  when:
+    - agentlessd_enabled.stdout == '0' or "skipped" in agentlessd_enabled.stdout
+    - agentless_creds is defined
+  tags:
+    - config
+
+- name: Checking alert log output settings
+  fail: msg="Please enable json_output or alerts_log options."
+  when:
+    - khulnasoft_manager_config.json_output == 'no'
+    - khulnasoft_manager_config.alerts_log == 'no'
+  tags:
+    - init
+    - config
+
+- name: Configure ossec.conf
+  template:
+    src: var-ossec-etc-ossec-server.conf.j2
+    dest: "{{ khulnasoft_dir }}/etc/ossec.conf"
+    owner: root
+    group: khulnasoft
+    mode: 0644
+  notify: restart khulnasoft-manager
+  tags:
+    - init
+    - config
+
+- name: Ossec-authd password
+  template:
+    src: authd_pass.j2
+    dest: "{{ khulnasoft_dir }}/etc/authd.pass"
+    owner: khulnasoft
+    group: khulnasoft
+    mode: 0640
+  no_log: true
+  notify: restart khulnasoft-manager
+  when:
+    - khulnasoft_manager_config.authd.use_password is defined
+    - khulnasoft_manager_config.authd.use_password == 'yes'
+  tags:
+    - config
+
+- name: Create custom API user
+  block:
+    - name: Copy create_user script
+      copy:
+        src: create_user.py
+        dest: "{{ khulnasoft_dir }}/framework/scripts/create_user.py"
+        owner: root
+        group: khulnasoft
+        mode: 0644
+
+    - name: Create admin.json
+      template:
+        src: templates/admin.json.j2
+        dest: "{{ khulnasoft_dir }}/api/configuration/admin.json"
+        owner: khulnasoft
+        group: khulnasoft
+        mode: 0644
+      no_log: true
+
+    - name: Execute create_user script
+      script:
+        chdir: "{{ khulnasoft_dir }}/framework/scripts/"
+        cmd: create_user.py --username "{{ item.username }}" --password "{{ item.password }}"
+        executable: "{{ khulnasoft_dir }}/framework/python/bin/python3"
+      with_items:
+        - "{{ khulnasoft_api_users }}"
+
+  tags:
+    - config_api_users
+  when:
+    - khulnasoft_api_users is defined
+    - khulnasoft_manager_config.cluster.node_type == "master"
+
+- name: Agentless Hosts & Passwd
+  template:
+    src: agentless.j2
+    dest: "{{ khulnasoft_dir }}/agentless/.passlist_tmp"
+    owner: root
+    group: root
+    mode: 0644
+  no_log: true
+  when: agentless_creds is defined
+  tags:
+    - config
+
+- name: Encode the secret
+  shell: "/usr/bin/base64 {{ khulnasoft_dir }}/agentless/.passlist_tmp > {{ khulnasoft_dir }}/agentless/.passlist && rm {{ khulnasoft_dir }}/agentless/.passlist_tmp"
+  when: agentless_creds is defined
+  tags:
+    - config
+
+- name: Ensure Khulnasoft Manager service is started and enabled.
+  service:
+    name: "khulnasoft-manager"
+    enabled: true
+    state: started
+  tags:
+    - config
+
+- name: Create agent groups
+  command: "{{ khulnasoft_dir }}/bin/agent_groups -a -g {{ item }} -q"
+  with_items:
+    - "{{ agent_groups }}"
+  when:
+    - ( agent_groups is defined) and ( agent_groups|length > 0)
+  tags: molecule-idempotence-notest
+
+- name: Run uninstall tasks
+  include_tasks: uninstall.yml
+  when: not khulnasoft_manager_sources_installation.enabled

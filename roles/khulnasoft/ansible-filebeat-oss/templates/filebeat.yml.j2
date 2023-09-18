@@ -1,0 +1,42 @@
+# Khulnasoft - Filebeat configuration file
+filebeat.modules:
+  - module: khulnasoft
+    alerts:
+      enabled: true
+    archives:
+      enabled: false
+
+setup.template.json.enabled: true
+setup.template.json.path: '/etc/filebeat/khulnasoft-template.json'
+setup.template.json.name: 'khulnasoft'
+setup.template.overwrite: true
+setup.ilm.enabled: false
+
+# Send events directly to Khulnasoft indexer
+output.elasticsearch:
+  hosts:
+{% for item in filebeat_output_indexer_hosts %}
+  - {{ item }}
+{% endfor %}
+
+{% if filebeat_security %}
+  username: {{ indexer_security_user }}
+  password: "{{ indexer_security_password }}"
+  protocol: https
+  ssl.certificate_authorities:
+    - {{ filebeat_ssl_dir }}/root-ca.pem
+  ssl.certificate: "{{ filebeat_ssl_dir }}/{{ filebeat_node_name }}.pem"
+  ssl.key: "{{ filebeat_ssl_dir }}/{{ filebeat_node_name }}-key.pem"
+{% endif %}
+
+# Optional. Send events to Logstash instead of Khulnasoft indexer
+#output.logstash.hosts: ["YOUR_LOGSTASH_SERVER_IP:5000"]
+
+logging.metrics.enabled: false
+
+seccomp:
+  default_action: allow
+  syscalls:
+  - action: allow
+    names:
+    - rseq
