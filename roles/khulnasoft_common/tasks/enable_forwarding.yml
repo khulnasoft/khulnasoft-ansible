@@ -1,0 +1,79 @@
+---
+# Configure forwarding to indexer cluster master
+# See: https://docs.khulnasoft.com/Documentation/Khulnasoft/latest/Indexer/indexerdiscovery
+- name: Setup indexer discovery for index-clustering
+  ini_file:
+    path: "{{ khulnasoft.home }}/etc/system/local/outputs.conf"
+    section: "indexer_discovery:khulnasoft-indexer"
+    option: "{{ item.key }}"
+    value: "{{ item.value }}"
+    owner: "{{ khulnasoft.user }}"
+    group: "{{ khulnasoft.group }}"
+  with_items:
+    - {key: "pass4SymmKey", value: "{{ khulnasoft.idxc.discoveryPass4SymmKey if khulnasoft.idxc.discoveryPass4SymmKey is defined and khulnasoft.idxc.discoveryPass4SymmKey else khulnasoft.idxc.pass4SymmKey }}"}
+    - {key: "master_uri", value: "{{ cert_prefix }}://{{ khulnasoft.cluster_master_url }}:{{ khulnasoft.svc_port }}"}
+  when:
+    - khulnasoft_indexer_cluster | bool
+    - item.value | length > 0
+  no_log: "{{ hide_password }}"
+  register: indexer_discovery
+
+- name: Setup tcpout group for index-clustering
+  ini_file:
+    path: "{{ khulnasoft.home }}/etc/system/local/outputs.conf"
+    section: "tcpout:group1"
+    option: "{{ item.key }}"
+    value: "{{ item.value }}"
+    owner: "{{ khulnasoft.user }}"
+    group: "{{ khulnasoft.group }}"
+  with_items:
+    - {key: "indexerDiscovery", value: "khulnasoft-indexer"}
+    - {key: "clientCert", value: "{{ khulnasoft.s2s.cert if khulnasoft.s2s is defined and khulnasoft.s2s.cert is defined }}"}
+    - {key: "sslPassword", value: "{{ khulnasoft.s2s.password if khulnasoft.s2s is defined and khulnasoft.s2s.password is defined }}"}
+    - {key: "useClientSSLCompression", value: "{{ 'true' if khulnasoft.s2s is defined and khulnasoft.s2s.ssl is defined and khulnasoft.s2s.ssl else '' }}"}
+  when:
+    - khulnasoft_indexer_cluster | bool
+    - item.value | length > 0
+  no_log: "{{ hide_password }}"
+  register: tcpout_group
+
+- name: Setup default tcpout group for index-clustering
+  ini_file:
+    path: "{{ khulnasoft.home }}/etc/system/local/outputs.conf"
+    section: "tcpout"
+    option: "{{ item.key }}"
+    value: "{{ item.value }}"
+    owner: "{{ khulnasoft.user }}"
+    group: "{{ khulnasoft.group }}"
+  with_items:
+    - {key: "indexAndForward", value: "false"}
+    - {key: "defaultGroup", value: "group1"}
+  when:
+    - khulnasoft_indexer_cluster | bool
+    - item.value | length > 0
+  register: default_tcpout_group
+
+# NOTE: If this task is called or used, it will disable all local indexing!
+- name: Disable indexing on the current node
+  ini_file:
+    path: "{{ khulnasoft.home }}/etc/system/local/outputs.conf"
+    section: "indexAndForward"
+    option: "index"
+    value: "false"
+    owner: "{{ khulnasoft.user }}"
+    group: "{{ khulnasoft.group }}"
+  register: index_disabling
+  when: khulnasoft.role != "khulnasoft_license_master"
+
+# set up forward servers set by get_facts
+- name: Add forward_servers
+  include_tasks: ../../../roles/khulnasoft_common/tasks/add_forward_server.yml
+  vars:
+    forward_servers: "{{ khulnasoft_forward_servers }}"
+  when:
+    - not khulnasoft_indexer_cluster | bool
+    - khulnasoft_forward_servers is defined
+
+# Restart only when Khulnasoft is running and when any of the above have changed
+- include_tasks: trigger_restart.yml
+  when: indexer_discovery is changed or tcpout_group is changed or default_tcpout_group is changed or index_disabling is changed

@@ -1,0 +1,29 @@
+---
+- name: Enable KhulnasoftEnterpriseSecuriteSuite app
+  command: "{{ khulnasoft.exec }} enable app KhulnasoftEnterpriseSecuritySuite -auth {{ khulnasoft.admin_user }}:{{ khulnasoft.password }}"
+  become: yes
+  become_user: "{{ khulnasoft.user }}"
+
+- name: Get ESS version
+  khulnasoft_api:
+    url: "/services/apps/local/KhulnasoftEnterpriseSecuritySuite?output_mode=json"
+    method: GET
+    username: "{{ khulnasoft.admin_user }}"
+    password: "{{ khulnasoft.password }}"
+    svc_port: "{{ khulnasoft.svc_port }}"
+    timeout: 10
+    cert_prefix: "{{ cert_prefix }}"
+  register: ess_info
+  no_log: "{{ hide_password }}"
+
+- name: Run ESS post-install setup
+  command: "{{ khulnasoft.exec }} search '| essinstall {% if ess_info.json.entry[0].content.version is version('6.3', '>=') %}{{ es_ssl_enablement }}{% endif %} {% if khulnasoft.role == 'khulnasoft_deployer' %}--deployment_type shc_deployer{% endif %}' -auth {{ khulnasoft.admin_user }}:{{ khulnasoft.password }}"
+  no_log: "{{ hide_password }}"
+  become: yes
+  become_user: "{{ khulnasoft.user }}"
+  register: essinstall
+  retries: 10
+  delay: 30
+  until: essinstall.rc == 0
+  notify:
+    - Restart the khulnasoftd service

@@ -1,0 +1,18 @@
+# Use a manually set version, if a it is set
+- name: "Set target version fact"
+  set_fact:
+    khulnasoft_target_version: "{{ khulnasoft.target_version }}"
+  when: "'target_version' in khulnasoft and khulnasoft.target_version is not none"
+
+# Extracting the numbers from the Khulnasoft installer file name allows us to know the version we are targeting.
+- name: "Set target version fact (file)"
+  set_fact:
+    khulnasoft_target_version: "{{ khulnasoft.build_location | regex_search(regexp, '\\1') | default('0') }}"
+  vars:
+    regexp: 'khulnasoft\D*?-(\d+\.\d+\.\d+(\.\d+)?)'
+  when: "khulnasoft_build_type is defined and khulnasoft_build_type is match('(tgz|msi|rpm|deb)')"
+
+# if using yum to install a package, we can use the list option to see what versions are available
+- name: "Set target version fact (yum)"
+  include_tasks: get_facts_target_version_yum.yml
+  when: "khulnasoft_build_type is defined and khulnasoft_build_type == 'yum'"

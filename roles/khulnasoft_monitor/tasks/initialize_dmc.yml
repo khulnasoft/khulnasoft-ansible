@@ -1,0 +1,92 @@
+---
+- name: dmc_asset_build_full - GET
+  khulnasoft_api:
+    method: GET
+    url: "/servicesNS/nobody/khulnasoft_monitoring_console/saved/searches/DMC%20Asset%20-%20Build%20Full?output_mode=json"
+    cert_prefix: "{{ cert_prefix }}"
+    username: "{{ khulnasoft.admin_user }}"
+    password: "{{ khulnasoft.password }}"
+    svc_port: "{{ khulnasoft.svc_port }}"
+    body_format: "form-urlencoded"
+    status_code: [200]
+    return_content: true
+    use_proxy: no
+  register: dmc_asset_build_full
+
+- name: dmc_asset_build_full - POST
+  khulnasoft_api:
+    method: POST
+    url: "/servicesNS/nobody/khulnasoft_monitoring_console/saved/searches/DMC%20Asset%20-%20Build%20Full/dispatch"
+    cert_prefix: "{{ cert_prefix }}"
+    username: "{{ khulnasoft.admin_user }}"
+    password: "{{ khulnasoft.password }}"
+    svc_port: "{{ khulnasoft.svc_port }}"
+    body:
+      trigger_actions: true
+      dispatch.auto_cancel: "{{ dmc_asset_build_full.json['entry'][0]['content']['dispatch.auto_cancel'] }}"
+      dispatch.buckets: "{{ dmc_asset_build_full.json['entry'][0]['content']['dispatch.buckets'] }}"
+      dispatch.enablePreview: true
+    body_format: "form-urlencoded"
+    status_code: "200,201,409"
+
+- name: UI - GET
+  khulnasoft_api:
+    method: GET
+    url: "/servicesNS/nobody/khulnasoft_monitoring_console/data/ui/nav/default.distributed?output_mode=json"
+    cert_prefix: "{{ cert_prefix }}"
+    username: "{{ khulnasoft.admin_user }}"
+    password: "{{ khulnasoft.password }}"
+    svc_port: "{{ khulnasoft.svc_port }}"
+    body_format: "form-urlencoded"
+    status_code: [200]
+    return_content: true
+    use_proxy: no
+  register: settings
+
+- name: UI - POST
+  khulnasoft_api:
+    method: POST
+    url: "/servicesNS/nobody/khulnasoft_monitoring_console/data/ui/nav/default"
+    cert_prefix: "{{ cert_prefix }}"
+    username: "{{ khulnasoft.admin_user }}"
+    password: "{{ khulnasoft.password }}"
+    svc_port: "{{ khulnasoft.svc_port }}"
+    body:
+      eai:data: "{{ settings.json['entry'][0]['content']['eai:data'] }}"
+    body_format: "form-urlencoded"
+    status_code: "200,201,409"
+
+- name: DMC Conf - POST
+  khulnasoft_api:
+    method: POST
+    url: "/servicesNS/nobody/khulnasoft_monitoring_console/configs/conf-khulnasoft_monitoring_console_assets/settings"
+    cert_prefix: "{{ cert_prefix }}"
+    username: "{{ khulnasoft.admin_user }}"
+    password: "{{ khulnasoft.password }}"
+    svc_port: "{{ khulnasoft.svc_port }}"
+    body:
+      configuredPeers: "{{ configured_peers }}"
+      disabled: "{{ settings.json['entry'][0]['content']['disabled'] }}"
+      eai:acl: "{{ settings.json['entry'][0]['content']['eai:acl'] }}"
+      eai:appName: "{{ settings.json['entry'][0]['content']['eai:appName'] }}"
+      eai:userName: "{{ settings.json['entry'][0]['content']['eai:userName'] }}"
+    body_format: "form-urlencoded"
+    status_code: "200,201,409"
+
+- name: DMC Settings - POST
+  khulnasoft_api:
+    method: POST
+    url: "/servicesNS/nobody/system/apps/local/khulnasoft_monitoring_console"
+    cert_prefix: "{{ cert_prefix }}"
+    username: "{{ khulnasoft.admin_user }}"
+    password: "{{ khulnasoft.password }}"
+    svc_port: "{{ khulnasoft.svc_port }}"
+    body:
+      author: Khulnasoft
+      check_for_updates: 1
+      configured: 1
+      label: "Monitoring Console"
+      version: "{{ settings.json['generator']['version'] }}"
+      visible: 1
+    body_format: "form-urlencoded"
+    status_code: "200,201,409"

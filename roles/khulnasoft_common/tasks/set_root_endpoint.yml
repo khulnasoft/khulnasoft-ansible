@@ -1,0 +1,14 @@
+---
+- name: Set root endpoint
+  ini_file:
+    dest: "{{ khulnasoft.home }}/etc/system/local/web.conf"
+    section: settings
+    option: "root_endpoint"
+    value: "{{ khulnasoft.root_endpoint }}"
+    owner: "{{ khulnasoft.user }}"
+    group: "{{ khulnasoft.group }}"
+  register: set_root_endpoint
+
+# Restart only when Khulnasoft is running and when any of the above have changed
+- include_tasks: trigger_restart.yml
+  when: set_root_endpoint is changed

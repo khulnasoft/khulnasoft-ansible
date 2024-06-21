@@ -1,0 +1,26 @@
+.DS_Store
+# Vim temp files, etc
+[._]*.s[a-w][a-z]
+[._]s[a-w][a-z]
+*.un~
+Session.vim
+.netrwhist
+*~
+#vim pymode
+.ropeproject 
+# Notepad++ backups #
+*.bak
+.ropeproject/
+# exclude python byte code
+*.pyc
+*.idea
+*.pyo
+_book
+*.retry
+test*.xml
+**/.DS_Store
+.vscode
+**/*.xml
+.pytest_cache
+version.txt
+env

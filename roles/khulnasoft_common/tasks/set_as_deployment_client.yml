@@ -1,0 +1,40 @@
+---
+# http://docs.khulnasoft.com/Documentation/Khulnasoft/latest/Updating/Configuredeploymentclients
+
+- name: Wait for the deployment server
+  include_tasks: wait_for_khulnasoft_instance.yml
+  vars:
+    khulnasoft_instance_address: "{{ khulnasoft.deployment_server }}"
+
+# INFRA-38882: Do I need to update this task as well? or does the khulnasoft_exec handle it?
+- name: Set node as deployment client
+  command: "{{ khulnasoft.exec }} set deploy-poll {{ khulnasoft.deployment_server }}:{{ khulnasoft.svc_port }} -auth '{{ khulnasoft.admin_user }}:{{ khulnasoft.password }}'"
+  become: yes
+  become_user: "{{ khulnasoft.user }}"
+  register: set_deployment_client
+  until: set_deployment_client.rc == 0
+  changed_when: set_deployment_client.rc == 0
+  retries: "{{ retry_num }}"
+  delay: "{{ retry_delay }}"
+  notify:
+    - Restart the khulnasoftd service
+  ignore_errors: yes
+  no_log: "{{ hide_password }}"
+
+- name: Set deployment client name
+  ini_file:
+    owner: "{{ khulnasoft.user }}"
+    group: "{{ khulnasoft.group }}"
+    dest: "{{ khulnasoft.home }}/etc/system/local/deploymentclient.conf"
+    section: deployment-client
+    option: "clientName"
+    value: "{{ khulnasoft.deployment_client.name }}"
+  become: yes
+  become_user: "{{ khulnasoft.user }}"
+  notify:
+    - Restart the khulnasoftd service
+  ignore_errors: yes
+  no_log: "{{ hide_password }}"
+  when:
+    - khulnasoft.deployment_client is defined and khulnasoft.deployment_client
+    - khulnasoft.deployment_client.name is defined and khulnasoft.deployment_client.name

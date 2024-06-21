@@ -1,0 +1,7 @@
+---
+khulnasoft:
+  role: khulnasoft_indexer
+  build_location: https://download.khulnasoft.com/products/khulnasoft/releases/8.0.4.1/linux/khulnasoft-8.0.4.1-ab7a85abaa98-Linux-x86_64.tgz
+  hec:
+    token: abcd1234
+  password: helloworld

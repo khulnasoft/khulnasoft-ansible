@@ -1,0 +1,7 @@
+---
+- name: Disable installed apps
+  command: "{{ khulnasoft.exec }} disable app {{ item }} -auth {{ khulnasoft.admin_user }}:{{ khulnasoft.password }}"
+  become: yes
+  become_user: "{{ khulnasoft.user }}"
+  with_items: "{{ installed_apps }}"
+  when: installed_apps is defined and installed_apps | length > 0

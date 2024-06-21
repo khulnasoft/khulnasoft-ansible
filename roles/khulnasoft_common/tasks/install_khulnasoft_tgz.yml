@@ -1,0 +1,65 @@
+- name: Download Khulnasoft with an optional bearer token
+  get_url:
+    url: "{{ khulnasoft.build_location }}"
+    dest: "{{ khulnasoft.opt }}"
+    owner: "{{ khulnasoft.user }}"
+    group: "{{ khulnasoft.group }}"
+    headers: '{% if khulnasoft.build_url_bearer_token %}{"Authorization": "Bearer {{ khulnasoft.build_url_bearer_token }}"}{% else %}{}{% endif %}'
+    validate_certs: no
+    timeout: 900
+    mode: 0666
+  when: 
+    - khulnasoft.build_location is match("^(https?)://.*")
+    - khulnasoft.artifact_auth_user is undefined or khulnasoft.artifact_auth_user == ""
+  register: download_result
+  until: download_result is succeeded
+  retries: 5
+  delay: "{{ retry_delay }}"
+  become: yes
+  become_user: "{{ privileged_user }}"
+
+- name: Download Khulnasoft using basic auth
+  get_url:
+    url: "{{ khulnasoft.build_location }}"
+    dest: "{{ khulnasoft.opt }}"
+    owner: "{{ khulnasoft.user }}"
+    group: "{{ khulnasoft.group }}"
+    force_basic_auth: false 
+    url_username: "{{ khulnasoft.artifact_auth_user }}"
+    url_password: "{{ khulnasoft.artifact_auth_pass }}"
+    validate_certs: no
+    timeout: 900
+    mode: 0666
+  when: 
+    - khulnasoft.build_location is match("^(https?)://.*")
+    - khulnasoft.artifact_auth_user is defined
+    - khulnasoft.artifact_auth_user != ""
+  register: download_result
+  until: download_result is succeeded
+  retries: 5
+  delay: "{{ retry_delay }}"
+  become: yes
+  become_user: "{{ privileged_user }}"
+
+- name: Define a path for the downloaded package
+  set_fact:
+    khulnasoft_downloaded_build_location: "{{ download_result.dest }}"
+  when: khulnasoft.build_location is match("^(https?)://.*")
+
+- name: Define a regex replacement for khulnasoft.build_location
+  set_fact:
+    khulnasoft_replaced_build_location: "{{ khulnasoft.build_location | regex_replace('^file://(.*)$', '\\1') }}"
+
+- name: Install Khulnasoft (Linux) from local build location
+  unarchive:
+    src: "{% if khulnasoft.build_location is match('^(https?)://.*') %}{{ khulnasoft_downloaded_build_location }}{% else %}{{ khulnasoft_replaced_build_location }}{% endif %}"
+    dest: "{{ khulnasoft.opt }}"
+    owner: "{{ khulnasoft.user }}"
+    group: "{{ khulnasoft.group }}"
+    remote_src: yes
+  register: install_result
+  until: install_result is succeeded
+  retries: "{{ retry_num }}"
+  delay: "{{ retry_delay }}"
+  become: yes
+  become_user: "{{ privileged_user }}"

@@ -1,0 +1,48 @@
+---
+# start khulnasoft before running "add forward-server" command
+- include_tasks: start_khulnasoft.yml
+  when: '("s2s" not in khulnasoft and "s2s_port" in khulnasoft) or ("s2s" in khulnasoft and ("ssl" not in khulnasoft.s2s or ("ssl" in khulnasoft.s2s and not khulnasoft.s2s.ssl))) | bool'
+
+- name: "Enable forwarding to {{ forward_servers }}"
+  command: "{{ khulnasoft.exec }} add forward-server {{ item }}:{{ khulnasoft.s2s.port if khulnasoft.s2s.port is defined else khulnasoft.s2s_port }} -auth {{ khulnasoft.admin_user }}:{{ khulnasoft.password }} --accept-license --answer-yes --no-prompt"
+  become: yes
+  become_user: "{{ khulnasoft.user }}"
+  with_items: "{{ forward_servers }}"
+  register: forward_status
+  when: '("s2s" not in khulnasoft and "s2s_port" in khulnasoft) or ("s2s" in khulnasoft and ("ssl" not in khulnasoft.s2s or ("ssl" in khulnasoft.s2s and not khulnasoft.s2s.ssl))) | bool'
+  changed_when:
+    - "'Added forwarding to: ' in forward_status.stdout"
+    - "'forwarded-server already present' not in forward_status.stderr"
+  failed_when:
+    - forward_status.rc != 0
+    - "'forwarded-server already present' not in forward_status.stderr"
+  no_log: "{{ hide_password }}"
+
+- name: "Adjust outputs.conf permissions"
+  file:
+    path: "{{ khulnasoft.home }}/etc/system/local/outputs.conf"
+    owner: "{{ khulnasoft.user }}"
+    group: "{{ khulnasoft.group }}"
+
+- name: "Enable ssl-forwarding to {{ forward_servers }}"
+  ini_file:
+    path: "{{ khulnasoft.home }}/etc/system/local/outputs.conf"
+    section: "tcpout:group1"
+    option: "{{ item.key }}"
+    value: "{{ item.value }}"
+    owner: "{{ khulnasoft.user }}"
+    group: "{{ khulnasoft.group }}"
+  with_items:
+    - {key: "server", value: "{% for fwd in forward_servers %}{{ fwd }}:{{ khulnasoft.s2s.port }}{{ ',' if not loop.last else '' }}{% endfor %}"}
+    - {key: "clientCert", value: "{{ khulnasoft.s2s.cert if khulnasoft.s2s is defined and khulnasoft.s2s.cert is defined else ''}}"}
+    - {key: "sslPassword", value: "{{ khulnasoft.s2s.password if khulnasoft.s2s is defined and khulnasoft.s2s.password is defined else ''}}"}
+    - {key: "useClientSSLCompression", value: "{{ 'true' if khulnasoft.s2s is defined and khulnasoft.s2s.ssl is defined and khulnasoft.s2s.ssl else '' }}"}
+  when:
+    - '"s2s" in khulnasoft and "ssl" in khulnasoft.s2s and khulnasoft.s2s.ssl | bool'
+    - item.value | length > 0
+  no_log: "{{ hide_password }}"
+  register: enable_ssl_forwarding
+
+# Restart only when Khulnasoft is running and when any of the above have changed
+- include_tasks: trigger_restart.yml
+  when: forward_status is changed or enable_ssl_forwarding is changed

@@ -1,0 +1,131 @@
+ansible_ssh_user: "khulnasoft"
+ansible_pre_tasks:
+ansible_post_tasks:
+ansible_environment: {}
+retry_delay: 6
+restart_retry_delay: 30
+retry_num: 60
+hide_password: false
+wait_for_khulnasoft_retry_num: 60
+shc_sync_retry_num: 60
+
+config:
+    max_retries: 3
+    max_delay: 60
+    max_timeout: 1200
+    defaults_dir: /tmp/defaults
+    baked: default.yml
+    env:
+        var: KHULNASOFT_DEFAULTS_URL
+        headers:
+        verify: True
+    host:
+        url:
+        headers:
+        verify: True
+
+khulnasoft:
+    enable_tcp_mode: False
+    build_location:
+    allow_upgrade: True
+    tar_dir: "khulnasoft"
+    opt: &opt "/opt"
+    home: &home !!python/object/apply:os.path.join [*opt, "khulnasoft"]
+    user: "khulnasoft"
+    group: "khulnasoft"
+    exec: !!python/object/apply:os.path.join [*home, "bin", "khulnasoft"]
+    uds_socket_path_url: "%2Fopt%2Fkhulnasoftforwarder%2Fvar%2Frun%2Fkhulnasoft%2Fcli.socket"
+    pid: !!python/object/apply:os.path.join [*home, "var", "run", "khulnasoft", "khulnasoftd.pid"]
+    admin_user: "admin"
+    root_endpoint:
+    password:
+    declarative_admin_password: False
+    secret:
+    pass4SymmKey:
+    svc_port: 8089
+    ssl:
+        enable: True
+        cert:
+        password:
+        ca:
+    launch:
+    set_search_peers: True
+    s2s:
+        enable: True
+        port: 9997
+        ssl: False
+        cert:
+        password:
+        ca:
+    dsp:
+        enable: False
+        server: forwarders.scp.khulnasoft.com:9997
+        cert:
+        verify: False
+        pipeline_name:
+        pipeline_desc:
+        pipeline_spec:
+    appserver:
+        port: 8065
+    kvstore:
+        port: 8191
+    http_port: 8000
+    http_enableSSL: 0
+    http_enableSSL_cert:
+    http_enableSSL_privKey:
+    http_enableSSL_privKey_password:
+    hec:
+        enable: True
+        port: 8088
+        ssl: True
+        token:
+        cert:
+        password:
+    shc:
+        secret:
+        pass4SymmKey:
+        label: "shc_label"
+        replication_factor: 3
+        replication_port: 9887
+        deployer_push_mode:
+    idxc:
+        secret:
+        pass4SymmKey:
+        discoveryPass4SymmKey:
+        label: "idxc_label"
+        search_factor: 3
+        replication_factor: 3
+        replication_port: 9887
+    dfs:
+        enable: False
+        port: 9000
+        dfc_num_slots: 4
+        dfw_num_slots: 10
+        dfw_num_slots_enabled: False
+        spark_master_host: "127.0.0.1"
+        spark_master_webui_port: 8080
+    multisite_replication_factor_origin: 2
+    multisite_replication_factor_total: 3
+    multisite_search_factor_origin: 1
+    multisite_search_factor_total: 2
+    license_master_url:
+    cluster_master_url:
+    auxiliary_cluster_masters: []
+    search_head_captain_url:
+    deployer_url:
+    deployment_client:
+        name:
+    connection_timeout: 0
+    enable_service: False
+    disable_popups: False
+    service_name:
+    smartstore:
+    app_paths:
+        default: !!python/object/apply:os.path.join [*home, "etc", "apps"]
+        shc: !!python/object/apply:os.path.join [*home, "etc", "shcluster", "apps"]
+        idxc: !!python/object/apply:os.path.join [*home, "etc", "master-apps"]
+        deployment: !!python/object/apply:os.path.join [*home, "etc", "deployment-apps"]
+        httpinput: !!python/object/apply:os.path.join [*home, "etc", "apps", "khulnasoft_httpinput"]
+
+    es:
+      ssl_enablement: "auto"

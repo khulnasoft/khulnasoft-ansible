@@ -1,0 +1,42 @@
+---
+- name: Enable khulnasofttcp input
+  ini_file:
+    dest: "{{ khulnasoft.home }}/etc/system/local/inputs.conf"
+    section: "khulnasofttcp://{{ khulnasoft.s2s_port if khulnasoft.s2s_port is defined else khulnasoft.s2s.port }}"
+    option: "disabled"
+    value: "{{ 0 if 's2s' in khulnasoft and 'enable' in khulnasoft.s2s and khulnasoft.s2s.enable else 1 }}"
+    owner: "{{ khulnasoft.user }}"
+    group: "{{ khulnasoft.group }}"
+  register: khulnasofttcp_enabled
+
+- name: Remove khulnasofttcp-ssl input
+  ini_file:
+    dest: "{{ khulnasoft.home }}/etc/system/local/inputs.conf"
+    section: "khulnasofttcp-ssl:{{ khulnasoft.s2s_port if khulnasoft.s2s_port is defined else khulnasoft.s2s.port }}"
+    state: absent
+    owner: "{{ khulnasoft.user }}"
+    group: "{{ khulnasoft.group }}"
+  register: khulnasofttcp_ssl_disabled
+
+- name: Remove input SSL settings
+  ini_file:
+    dest: "{{ khulnasoft.home }}/etc/system/local/inputs.conf"
+    section: SSL
+    state: absent
+    owner: "{{ khulnasoft.user }}"
+    group: "{{ khulnasoft.group }}"
+  register: khulnasofttcp_ssl_reset
+
+- name: Reset root CA
+  ini_file:
+    dest: "{{ khulnasoft.home }}/etc/system/local/inputs.conf"
+    section: sslConfig
+    option: rootCA
+    state: absent
+    owner: "{{ khulnasoft.user }}"
+    group: "{{ khulnasoft.group }}"
+  register: khulnasofttcp_ssl_ca_reset
+
+# Restart only when Khulnasoft is running and when any of the above have changed
+- include_tasks: trigger_restart.yml
+  when: khulnasofttcp_enabled is changed or khulnasofttcp_ssl_disabled is changed or khulnasofttcp_ssl_reset is changed or khulnasofttcp_ssl_ca_reset is changed

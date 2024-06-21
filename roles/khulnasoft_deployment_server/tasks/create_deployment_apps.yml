@@ -1,0 +1,14 @@
+---
+- include_tasks: ../../../roles/khulnasoft_common/tasks/install_apps.yml
+  vars:
+    app_url: "{{ item }}"
+  loop: "{{ khulnasoft.apps_location }}"
+
+- include_tasks: ../../../roles/khulnasoft_common/tasks/find_installed_apps.yml
+
+- include_tasks: ../../../roles/khulnasoft_common/tasks/copy_installed_apps.yml
+  vars:
+    apps: "{{ installed_apps }}"
+    dest: "{{ khulnasoft.app_paths.deployment }}"
+
+- include_tasks: ../../../roles/khulnasoft_common/tasks/disable_installed_apps.yml

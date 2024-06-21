@@ -1,0 +1,55 @@
+---
+
+- name: Enable khulnasofttcp-ssl input
+  ini_file:
+    dest: "{{ khulnasoft.home }}/etc/system/local/inputs.conf"
+    section: "khulnasofttcp-ssl:{{ khulnasoft.s2s_port if khulnasoft.s2s_port is defined else khulnasoft.s2s.port }}"
+    option: "disabled"
+    value: "0"
+    owner: "{{ khulnasoft.user }}"
+    group: "{{ khulnasoft.group }}"
+  register: khulnasofttcp_ssl_enabled
+
+- name: Remove khulnasofttcp input
+  ini_file:
+    dest: "{{ khulnasoft.home }}/etc/system/local/inputs.conf"
+    section: "khulnasofttcp://{{ khulnasoft.s2s_port if khulnasoft.s2s_port is defined else khulnasoft.s2s.port }}"
+    state: absent
+    owner: "{{ khulnasoft.user }}"
+    group: "{{ khulnasoft.group }}"
+  register: khulnasofttcp_disabled
+
+- name: Configure SSL certificate path
+  ini_file:
+    dest: "{{ khulnasoft.home }}/etc/system/local/inputs.conf"
+    section: SSL
+    option: serverCert
+    value: "{{ khulnasoft.s2s.cert }}"
+    owner: "{{ khulnasoft.user }}"
+    group: "{{ khulnasoft.group }}"
+  register: khulnasofttcp_ssl_cert_configured
+
+- name: Configure SSL password
+  ini_file:
+    dest: "{{ khulnasoft.home }}/etc/system/local/inputs.conf"
+    section: SSL
+    option: sslPassword
+    value: "{{ khulnasoft.s2s.password }}"
+    owner: "{{ khulnasoft.user }}"
+    group: "{{ khulnasoft.group }}"
+  register: khulnasofttcp_ssl_pass_configured
+
+- name: Configure SSL root CA
+  ini_file:
+    dest: "{{ khulnasoft.home }}/etc/system/local/inputs.conf"
+    section: SSL
+    option: rootCA
+    value: "{{ khulnasoft.s2s.ca if khulnasoft.s2s.ca else '$KHULNASOFT_HOME/etc/auth/cacert.pem' }}"
+    owner: "{{ khulnasoft.user }}"
+    group: "{{ khulnasoft.group }}"
+  when: ansible_system is not match("CYGWIN*|Win32NT")
+  register: khulnasofttcp_ssl_ca_configured
+
+# Restart only when Khulnasoft is running and when any of the above have changed
+- include_tasks: trigger_restart.yml
+  when: khulnasofttcp_disabled is changed or khulnasofttcp_ssl_cert_configured is changed or khulnasofttcp_ssl_pass_configured is changed or khulnasofttcp_ssl_ca_configured is changed

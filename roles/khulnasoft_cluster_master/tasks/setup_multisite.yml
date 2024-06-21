@@ -1,0 +1,23 @@
+---
+- include_tasks: ../../../roles/khulnasoft_common/tasks/wait_for_khulnasoft_instance.yml
+  vars:
+    khulnasoft_instance_address: "{{ khulnasoft.multisite_master }}"
+
+# UPDATE
+- name: Convert Extrenal Cluster Master Name into Internal URI
+  set_fact:
+      multisite_master_uri: "{{ cert_prefix }}://{{ khulnasoft.multisite_master }}:{{ khulnasoft.svc_port }}"
+
+- name: Set the multisite master
+  command: "{{ khulnasoft.exec }} edit cluster-config -mode master -multisite true -available_sites {{ khulnasoft.all_sites }} -site {{ khulnasoft.site }} -site_replication_factor origin:{{ khulnasoft.multisite_replication_factor_origin }},total:{{ khulnasoft.multisite_replication_factor_total }} -site_search_factor origin:{{ khulnasoft.multisite_search_factor_origin }},total:{{ khulnasoft.multisite_search_factor_total }} -auth {{ khulnasoft.admin_user }}:{{ khulnasoft.password }} -secret {{ khulnasoft.idxc.pass4SymmKey }}"
+  become: yes
+  become_user: "{{ khulnasoft.user }}"
+  register: set_multisite_master
+  until: set_multisite_master.rc == 0
+  changed_when: set_multisite_master.rc == 0
+  retries: "{{ retry_num }}"
+  delay: "{{ retry_delay }}"
+  ignore_errors: yes
+  notify:
+    - Restart the khulnasoftd service
+  no_log: "{{ hide_password }}"

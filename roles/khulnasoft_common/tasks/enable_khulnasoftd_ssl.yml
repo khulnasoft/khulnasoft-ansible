@@ -1,0 +1,51 @@
+---
+# By default, khulnasoftd responds on SSL - only update 'enableKhulnasoftdSSL' if purposely disabled 
+- name: Enable Khulnasoftd SSL
+  ini_file:
+    dest: "{{ khulnasoft.home }}/etc/system/local/server.conf"
+    section: sslConfig
+    option: enableKhulnasoftdSSL
+    value: "false"
+    owner: "{{ khulnasoft.user }}"
+    group: "{{ khulnasoft.group }}"
+    state: "{{ 'absent' if khulnasoft.ssl.enable else 'present' }}"
+  become: yes
+  become_user: "{{ khulnasoft.user }}"
+  when: "'enable' in khulnasoft.ssl"
+
+- name: Set Khulnasoftd CA
+  ini_file:
+    dest: "{{ khulnasoft.home }}/etc/system/local/server.conf"
+    section: sslConfig
+    option: sslRootCAPath
+    value: "{{ khulnasoft.ssl.ca }}"
+    owner: "{{ khulnasoft.user }}"
+    group: "{{ khulnasoft.group }}"
+  become: yes
+  become_user: "{{ khulnasoft.user }}"
+  when: "'ca' in khulnasoft.ssl and khulnasoft.ssl.ca"
+
+- name: Set Khulnasoftd cert
+  ini_file:
+    dest: "{{ khulnasoft.home }}/etc/system/local/server.conf"
+    section: sslConfig
+    option: serverCert
+    value: "{{ khulnasoft.ssl.cert }}"
+    owner: "{{ khulnasoft.user }}"
+    group: "{{ khulnasoft.group }}"
+  become: yes
+  become_user: "{{ khulnasoft.user }}"
+  when: "'cert' in khulnasoft.ssl and khulnasoft.ssl.cert"
+
+- name: Set Khulnasoftd SSL password
+  ini_file:
+    dest: "{{ khulnasoft.home }}/etc/system/local/server.conf"
+    section: sslConfig
+    option: sslPassword
+    value: "{{ khulnasoft.ssl.password }}"
+    owner: "{{ khulnasoft.user }}"
+    group: "{{ khulnasoft.group }}"
+  become: yes
+  become_user: "{{ khulnasoft.user }}"
+  when: "'password' in khulnasoft.ssl and khulnasoft.ssl.password"
+  changed_when: false

@@ -1,0 +1,60 @@
+---
+- name: Remove old manifest files
+  file:
+    path: "{{ item.path }}"
+    state: "absent"
+  ignore_errors: yes
+  become: yes
+  become_user: "{{ privileged_user }}"
+  with_items:
+  - "{{ manifests.files }}"
+  when: khulnasoft_upgrade | bool
+
+- name: Remove old directories
+  file:
+    path: "{{ item }}"
+    state: "absent"
+  ignore_errors: yes
+  become: yes
+  become_user: "{{ privileged_user }}"
+  with_items:
+    - "{{ khulnasoft.home }}/bin"
+    - "{{ khulnasoft.home }}/lib"
+    - "{{ khulnasoft.home }}/share"
+    - "{{ khulnasoft.home }}/Python-2.7"
+  when: khulnasoft_upgrade | bool
+
+- name: Find all files to clean up in Khulnasoft home for fresh install
+  find:
+    path: "{{ khulnasoft.home }}"
+    file_type: file
+  ignore_errors: yes
+  become: yes
+  become_user: "{{ privileged_user }}"
+  register: cleanup_files
+  when: not khulnasoft_upgrade
+
+- name: Clean up Khulnasoft home for fresh install
+  file:
+    path: "{{ item.path }}"
+    state: "absent"
+  ignore_errors: yes
+  become: yes
+  become_user: "{{ privileged_user }}"
+  with_items: "{{ cleanup_files.files }}"
+  when: not khulnasoft_upgrade
+
+- name: Install Khulnasoft
+  include_tasks: install_khulnasoft_{{ khulnasoft_build_type }}.yml
+
+- name: Remove installers
+  file:
+    dest: "{{ item }}"
+    state: "absent"
+  ignore_errors: yes
+  become: yes
+  become_user: "{{ privileged_user }}"
+  with_items:
+    - "{{ khulnasoft.build_location }}"
+    - "/tmp/khulnasoft.msi"
+    - khulnasoft_downloaded_build_location

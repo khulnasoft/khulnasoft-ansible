@@ -1,0 +1,7 @@
+---
+- name: Remove user-seed.conf
+  file:
+    dest: "{{ khulnasoft.home }}/etc/system/local/user-seed.conf"
+    state: "absent"
+  notify:
+    - Restart the khulnasoftd service

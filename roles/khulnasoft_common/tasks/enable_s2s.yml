@@ -1,0 +1,10 @@
+---
+- include_tasks: s2s/configure_khulnasofttcp_ssl.yml
+  register: khulnasofttcp_ssl_result
+  when:
+    - "'s2s' in khulnasoft and 'ssl' in khulnasoft.s2s and khulnasoft.s2s.ssl | bool"
+
+- include_tasks: s2s/configure_khulnasofttcp.yml
+  register: khulnasofttcp_result
+  when:
+    - "'s2s' not in khulnasoft or ('ssl' not in khulnasoft.s2s or not khulnasoft.s2s.ssl | bool)"

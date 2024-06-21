@@ -1,0 +1,42 @@
+---
+dependency:
+  name: galaxy
+driver:
+  name: docker
+platforms:
+  - name: khulnasoft-hf-centos8
+    image: geerlingguy/docker-centos8-ansible:latest
+    pre_build_image: true
+    command: "/lib/systemd/systemd"
+    volumes:
+      - "/opt/khulnasoft/var"
+  - name: khulnasoft-hf-debian10
+    image: jgeusebroek/debian10-molecule:latest
+    pre_build_image: true
+    command: "/lib/systemd/systemd"
+    volumes:
+      - "/opt/khulnasoft/var"
+  - name: khulnasoft-hf-debian9
+    image: geerlingguy/docker-debian9-ansible:latest
+    pre_build_image: true
+    command: "/lib/systemd/systemd"
+    volumes:
+      - "/opt/khulnasoft/var"
+  - name: khulnasoft-hf-redhat8
+    image: geerlingguy/docker-ubi8-ansible:latest
+    pre_build_image: true
+    command: "/lib/systemd/systemd"
+    volumes:
+      - "/opt/khulnasoft/var"
+provisioner:
+  name: ansible
+  env:
+    ANSIBLE_HASH_BEHAVIOUR: merge
+  inventory:
+    links:
+      hosts: ../../../../tests/fixtures/molecule-khulnasoft-hosts.yml
+      group_vars: ./group_vars/
+verifier:
+  name: testinfra
+  options:
+    junit-xml: ../../../../tests/results/hf-default-results.xml

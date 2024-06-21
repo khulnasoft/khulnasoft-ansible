@@ -1,0 +1,82 @@
+---
+- name: Fetch distsearch server info
+  khulnasoft_api:
+    method: GET
+    url: "/servicesNS/nobody/search/configs/conf-distsearch/distributedSearch?output_mode=json"
+    cert_prefix: "{{ cert_prefix }}"
+    username: "{{ khulnasoft.admin_user }}"
+    password: "{{ khulnasoft.password }}"
+    svc_port: "{{ khulnasoft.svc_port }}"
+    body_format: "json"
+    status_code: [200]
+    return_content: yes
+    timeout: 10
+    use_proxy: no
+  register: distsearch_server_info
+  no_log: "{{ hide_password }}"
+- name: Initialize lists
+  set_fact:
+    current_group_list: []
+    remove_peer_list: []
+    updated_group_list: []
+
+- name: Create list of current peers
+  set_fact:
+    current_group_list: "{{ current_group_list +  [ item ] }}"
+  with_items: "{{ distsearch_server_info['json']['entry'][0]['content']['servers'].split(',') }}"
+  when: distsearch_server_info['json']['entry'][0]['content']['servers'] is defined and (distsearch_server_info['json']['entry'][0]['content']['servers']| length > 0)
+
+- name: Create list of peers
+  set_fact:
+    group_list: "{{ (groups['khulnasoft_indexer']| default([])) + (groups['khulnasoft_search_head'] | default([])) + (groups['khulnasoft_search_head_captain'] | default([])) + (groups['khulnasoft_cluster_master'] | default([])) + (groups['khulnasoft_deployment_server']| default([])) + (groups['khulnasoft_license_master'] | default([])) + (groups['khulnasoft_standalone'] | default([])) }}"
+
+- name: Update group_list
+  vars:
+    append_url: "{{ cert_prefix }}://{{ item }}:{{ khulnasoft.svc_port }}"
+  set_fact:
+    updated_group_list: "{{ updated_group_list+ [ append_url ] }}"
+  with_items: "{{ group_list }}"
+  #INFRA-38882: Update Task?
+
+- name: Non-existent peers list
+  set_fact:
+    remove_peer_list: "{{ remove_peer_list + [ item ] }}"
+  with_items: "{{ current_group_list }}"
+  when: item not in updated_group_list and current_group_list is defined and (current_group_list| length > 0)
+
+- name: Remove search peers
+  command: "{{ khulnasoft.exec }} remove search-server {{ item }} -auth {{ khulnasoft.admin_user }}:{{ khulnasoft.password }} -remoteUsername {{ khulnasoft.admin_user }} -remotePassword {{ khulnasoft.password }}"
+  become: yes
+  become_user: "{{ khulnasoft.user }}"
+  register: remove_as_peer
+  until: remove_as_peer.rc == 0 or 'already exists' in remove_as_peer.stderr
+  retries: "{{ retry_num }}"
+  delay: "{{ retry_delay }}"
+  changed_when: remove_as_peer.rc == 0
+  failed_when: remove_as_peer.rc != 0 and 'already exists' not in remove_as_peer.stderr
+  notify:
+    - Restart the khulnasoftd service
+  no_log: "{{ hide_password }}"
+  with_items: "{{ remove_peer_list }}"
+  when: remove_peer_list is defined and (remove_peer_list| length > 0)
+
+- include_tasks: ../../../roles/khulnasoft_common/tasks/wait_for_khulnasoft_instance.yml
+  vars:
+    khulnasoft_instance_address: "{{ item }}"
+  with_items: "{{ group_list }}"
+
+- name: Set search peers
+  command: "{{ khulnasoft.exec }} add search-server {{ cert_prefix }}://{{ item }}:{{ khulnasoft.svc_port }} -auth {{ khulnasoft.admin_user }}:{{ khulnasoft.password }} -remoteUsername {{ khulnasoft.admin_user }} -remotePassword {{ khulnasoft.password }}"
+  become: yes
+  become_user: "{{ khulnasoft.user }}"
+  register: set_as_peer
+  until: set_as_peer.rc == 0 or 'already exists' in set_as_peer.stderr
+  retries: "{{ retry_num }}"
+  delay: "{{ retry_delay }}"
+  changed_when: set_as_peer.rc == 0
+  failed_when: set_as_peer.rc != 0 and 'already exists' not in set_as_peer.stderr
+  notify:
+    - Restart the khulnasoftd service
+  no_log: "{{ hide_password }}"
+  with_items: "{{ group_list }}"
+#INFRA-38882: Update exec?

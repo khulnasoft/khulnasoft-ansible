@@ -1,0 +1,9 @@
+---
+- name: Set KeyValueStore Port
+  ini_file:
+    dest: "{{ khulnasoft.home }}/etc/system/local/server.conf"
+    section: kvstore
+    option: "port"
+    value: "{{ khulnasoft.kvstore.port }}"
+    owner: "{{ khulnasoft.user }}"
+    group: "{{ khulnasoft.group }}"

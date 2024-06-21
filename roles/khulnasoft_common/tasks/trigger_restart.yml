@@ -1,0 +1,9 @@
+---
+# Trigger restart only when Khulnasoft is currently running; add add'l when clauses during include_tasks invocation as needed
+- include_tasks: get_khulnasoft_status.yml
+
+- name: Trigger restart
+  command: ls
+  changed_when: khulnasoft_status.rc == 0
+  notify:
+    - Restart the khulnasoftd service

@@ -1,0 +1,91 @@
+---
+# Forwarding traffic to Data Stream Processor: https://docs.khulnasoft.com/Documentation/DSP/latest/Data/Forwarder
+- name: Fetch DigiCert CA
+  get_url:
+    url: https://cacerts.digicert.com/DigiCertGlobalRootCA.crt.pem
+    dest: "{{ khulnasoft.home }}/etc/auth/DigiCertGlobalRootCA.pem"
+    owner: "{{ khulnasoft.user }}"
+    group: "{{ khulnasoft.group }}"
+    mode: 0666
+
+- name: Set root CA
+  ini_file:
+    path: "{{ khulnasoft.home }}/etc/system/local/server.conf"
+    section: sslConfig
+    option: sslRootCAPath
+    value: "{{ khulnasoft.home }}/etc/auth/DigiCertGlobalRootCA.pem"
+    owner: "{{ khulnasoft.user }}"
+    group: "{{ khulnasoft.group }}"
+  register: dsp_ca
+
+- name: Find DSP auto-generated cert
+  stat:
+    path: "{{ khulnasoft.home }}/etc/auth/dsp-fwd-chain.pem"
+  become: yes
+  become_user: "{{ khulnasoft.user }}"
+  register: existing_dsp_cert
+  when: khulnasoft.dsp.cert is defined and khulnasoft.dsp.cert == "auto"
+
+- name: Generate DSP cert
+  when:
+    - khulnasoft.dsp.cert is defined and khulnasoft.dsp.cert == "auto"
+    - not existing_dsp_cert.stat.exists
+  become: yes
+  become_user: "{{ khulnasoft.user }}"
+  block:
+  - name: Generate DSP key
+    command: "{{ khulnasoft.exec }} cmd openssl genrsa -out {{ khulnasoft.home }}/etc/auth/dsp-fwd.key 2048"
+
+  - name: Generate DSP csr
+    command: "{{ khulnasoft.exec }} cmd openssl req -new -key '{{ khulnasoft.home }}/etc/auth/dsp-fwd.key' -out '{{ khulnasoft.home }}/etc/auth/dsp-fwd.csr' -subj '/C=US/ST=CA/O=myOrg/CN=dspForwarder/emailAddress=email@example.com'"
+
+  - name: Generate DSP cert
+    command: "{{ khulnasoft.exec }} cmd openssl x509 -req -days 730 -in '{{ khulnasoft.home }}/etc/auth/dsp-fwd.csr' -signkey '{{ khulnasoft.home }}/etc/auth/dsp-fwd.key' -out '{{ khulnasoft.home }}/etc/auth/dsp-fwd.pem' -sha256"
+
+  - name: Create DSP cert chain
+    shell: "cat {{ khulnasoft.home }}/etc/auth/dsp-fwd.pem {{ khulnasoft.home }}/etc/auth/dsp-fwd.key > {{ khulnasoft.home }}/etc/auth/dsp-fwd-chain.pem"
+
+  - name: Read SCS cert
+    command: "cat {{ khulnasoft.home }}/etc/auth/dsp-fwd.pem"
+    register: cert_body
+
+  - name: Display cert for SCS forwarding
+    debug:
+      msg: "Upload the following cert into Khulnasoft Cloud Services to enable forwarding:\n{{ cert_body.stdout }} "
+
+- name: Configure DSP output
+  ini_file:
+    path: "{{ khulnasoft.home }}/etc/system/local/outputs.conf"
+    section: "tcpout:datastreamprocessor"
+    option: "{{ item.key }}"
+    value: "{{ item.value }}"
+    owner: "{{ khulnasoft.user }}"
+    group: "{{ khulnasoft.group }}"
+  with_items:
+    - {key: "server", value: "{{ khulnasoft.dsp.server }}"}
+    - {key: "clientCert", value: "{{ '{{ khulnasoft.home }}/etc/auth/dsp-fwd-chain.pem' if khulnasoft.dsp.cert == 'auto' else khulnasoft.dsp.cert }}"}
+    - {key: "sslVerifyServerCert", value: "{{ khulnasoft.s2s.verify | default('false') }}"}
+  when:
+    - khulnasoft.dsp.server is defined and khulnasoft.dsp.server
+    - khulnasoft.dsp.cert is defined and khulnasoft.dsp.cert
+  register: dsp_group
+
+- name: Enable DSP output
+  ini_file:
+    path: "{{ khulnasoft.home }}/etc/system/local/outputs.conf"
+    section: tcpout
+    option: defaultGroup
+    value: datastreamprocessor
+    owner: "{{ khulnasoft.user }}"
+    group: "{{ khulnasoft.group }}"
+  register: dsp_default
+
+- include_tasks: scloud/construct_stream.yml
+  when:
+    - scloudcli is defined and scloudcli.stat.exists
+    - khulnasoft.dsp.pipeline_name is defined and khulnasoft.dsp.pipeline_name
+    - khulnasoft.dsp.pipeline_spec is defined and khulnasoft.dsp.pipeline_spec
+
+# Restart only when Khulnasoft is running and when any of the above have changed
+- include_tasks: trigger_restart.yml
+  when: dsp_ca is changed or dsp_group is changed or dsp_default is changed

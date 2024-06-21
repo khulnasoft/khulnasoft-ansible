@@ -1,0 +1,39 @@
+---
+- name: "Get Khulnasoft status"
+  command: "{{ khulnasoft.exec }} status --accept-license --answer-yes --no-prompt"
+  become: yes
+  become_user: "{{ khulnasoft.user }}"
+  register: khulnasoft_status
+  changed_when: False
+  failed_when: False
+  ignore_errors: yes
+
+- name: "Stop Khulnasoft via cli"
+  command: "{{ khulnasoft.exec }} stop --accept-license --answer-yes --no-prompt"
+  become: yes
+  become_user: "{{ khulnasoft.user }}"
+  register: stop_khulnasoft
+  changed_when: stop_khulnasoft.rc == 0
+  when:
+    - not khulnasoft.enable_service
+    - khulnasoft_status.rc == 0
+
+- name: "Stop Khulnasoft via systemctl"
+  service:
+    name: "{{ khulnasoft_service_name }}"
+    state: stopped
+  when:
+    - khulnasoft.enable_service
+    - khulnasoft_status.rc == 0
+    - ansible_system is match("Linux")
+  become: yes
+  become_user: "{{ privileged_user }}"
+
+- name: "Stop Khulnasoft via Windows service"
+  win_service:
+    name: khulnasoftd
+    state: stopped
+  when:
+    - khulnasoft.enable_service
+    - khulnasoft_status.rc == 0
+    - ansible_os_family == "Windows"

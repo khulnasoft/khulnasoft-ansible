@@ -1,0 +1,29 @@
+---
+- name: Check current license group
+  khulnasoft_api:
+    method: GET
+    url: "/services/licenser/groups/Forwarder?output_mode=json"
+    cert_prefix: "{{ cert_prefix }}"
+    username: "{{ khulnasoft.admin_user }}"
+    password: "{{ khulnasoft.password }}"
+    svc_port: "{{ khulnasoft.svc_port }}"
+    status_code: '200,404'
+    timeout: 10
+  register: check_fwd_lic
+  changed_when: false
+  no_log: "{{ hide_password }}"
+
+- name: Activate forwarder license
+  khulnasoft_api:
+    method: POST
+    url: "/services/licenser/groups/Forwarder?output_mode=json"
+    cert_prefix: "{{ cert_prefix }}"
+    username: "{{ khulnasoft.admin_user }}"
+    password: "{{ khulnasoft.password }}"
+    svc_port: "{{ khulnasoft.svc_port }}"
+    body:
+      is_active: 1
+    body_format: "form-urlencoded"
+    status_code: [200]
+    timeout: 10
+  when: not check_fwd_lic.json.entry[0].content.is_active

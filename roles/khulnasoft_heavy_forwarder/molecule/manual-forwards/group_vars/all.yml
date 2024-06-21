@@ -1,0 +1,10 @@
+---
+khulnasoft:
+  role: khulnasoft_heavy_forwarder
+  build_location: https://download.khulnasoft.com/products/khulnasoft/releases/7.3.1.1/linux/khulnasoft-7.3.1.1-7651b7244cf2-Linux-x86_64.tgz
+  forward_servers:
+    - forwarder1.test.com
+    - forwarder2.test.com
+  hec:
+    token: abcd1234
+  password: helloworld

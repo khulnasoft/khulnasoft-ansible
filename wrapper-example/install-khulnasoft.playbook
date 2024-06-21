@@ -1,0 +1,135 @@
+---
+- hosts: khulnasoft_search_head
+  gather_facts: true
+  environment:
+    - LANG: en_US.utf8
+  tasks:
+    - name: Create khulnasoft-anisble defaults directory
+      file:
+        state: directory
+        path: /tmp/defaults
+        owner: ansible
+        group: ansible
+        # when specifying mode using octal numbers, add a leading 0
+        mode: 0755
+
+    - name: Copy default file
+      copy:
+        src: default.yml
+        dest: /tmp/defaults/default.yml
+        owner: ansible
+        group: ansible
+
+    - debug:
+        var: groups["khulnasoft_cluster_master"]
+        verbosity: 2
+
+    - debug:
+        var: groups["khulnasoft_indexer"]
+        verbosity: 2
+
+    - name: Start Khulnasoft-Ansible
+      command: ansible-playbook -i inventory/environ.py -l localhost site.yml
+      environment:
+        KHULNASOFT_BUILD_URL: https://download.khulnasoft.com/products/khulnasoft/releases/7.2.4/linux/khulnasoft-7.2.4-8a94541dcfac-Linux-x86_64.tgz
+        KHULNASOFT_ROLE: khulnasoft_search_head
+        KHULNASOFT_START_ARGS: --accept-license
+        KHULNASOFT_SEARCH_HEAD_URL: '{{ groups["khulnasoft_search_head"] }}'
+        KHULNASOFT_CLUSTER_MASTER_URL: '{{ groups["khulnasoft_cluster_master"][0] }}'
+        KHULNASOFT_INDEXER_URL: '{{ groups["khulnasoft_indexer"] }}'
+      args:
+        chdir: /opt/ansible
+      register: async_khulnasoft_ansible
+      async: 1000
+      poll: 0
+
+- hosts: khulnasoft_cluster_master
+  gather_facts: true
+  environment:
+    - LANG: en_US.utf8
+  tasks:
+    - name: Create khulnasoft-anisble defaults directory
+      file:
+        state: directory
+        path: /tmp/defaults
+        owner: ansible
+        group: ansible
+        # when specifying mode using octal numbers, add a leading 0
+        mode: 0755
+
+    - name: Copy default file
+      copy:
+        src: default.yml
+        dest: /tmp/defaults/default.yml
+        owner: ansible
+        group: ansible
+
+    - debug:
+        var: groups["khulnasoft_cluster_master"]
+        verbosity: 2
+
+    - debug:
+        var: groups["khulnasoft_indexer"]
+        verbosity: 2
+
+    - name: Start Khulnasoft-Ansible
+      command: ansible-playbook -i inventory/environ.py -l localhost site.yml
+      environment:
+        KHULNASOFT_BUILD_URL: https://download.khulnasoft.com/products/khulnasoft/releases/7.2.4/linux/khulnasoft-7.2.4-8a94541dcfac-Linux-x86_64.tgz
+        KHULNASOFT_ROLE: khulnasoft_cluster_master
+        KHULNASOFT_START_ARGS: --accept-license
+        KHULNASOFT_SEARCH_HEAD_URL: '{{ groups["khulnasoft_search_head"] }}'
+        KHULNASOFT_CLUSTER_MASTER_URL: '{{ groups["khulnasoft_cluster_master"][0] }}'
+        KHULNASOFT_INDEXER_URL: '{{ groups["khulnasoft_indexer"] }}'
+      args:
+        chdir: /opt/ansible
+      register: async_khulnasoft_ansible
+      async: 1000
+      poll: 0
+
+- hosts: khulnasoft_indexer
+  gather_facts: true
+  environment:
+    - LANG: en_US.utf8
+  tasks:
+    - name: Create khulnasoft-anisble defaults directory
+      file:
+        state: directory
+        path: /tmp/defaults
+        owner: ansible
+        group: ansible
+        # when specifying mode using octal numbers, add a leading 0
+        mode: 0755
+
+    - name: Copy default file
+      copy:
+        src: default.yml
+        dest: /tmp/defaults/default.yml
+        owner: ansible
+        group: ansible
+
+    - name: Start Khulnasoft-Ansible
+      command: ansible-playbook -i inventory/environ.py -l localhost site.yml
+      environment:
+        KHULNASOFT_BUILD_URL: https://download.khulnasoft.com/products/khulnasoft/releases/7.2.4/linux/khulnasoft-7.2.4-8a94541dcfac-Linux-x86_64.tgz
+        KHULNASOFT_ROLE: khulnasoft_indexer
+        KHULNASOFT_START_ARGS: --accept-license
+        KHULNASOFT_SEARCH_HEAD_URL: '{{ groups["khulnasoft_search_head"] }}'
+        KHULNASOFT_CLUSTER_MASTER_URL: '{{ groups["khulnasoft_cluster_master"][0] }}'
+        KHULNASOFT_INDEXER_URL: '{{ groups["khulnasoft_indexer"] }}'
+      args:
+        chdir: /opt/ansible
+      register: async_khulnasoft_ansible
+      async: 1000
+      poll: 0
+
+- hosts: all
+  gather_facts: true
+  tasks:
+    - name: 'Khulnasoft-Ansible - check on async task'
+      async_status:
+        jid: "{{ async_khulnasoft_ansible.ansible_job_id }}"
+      register: khulnasoft_job_result
+      until: khulnasoft_job_result.finished
+      retries: 1000
+

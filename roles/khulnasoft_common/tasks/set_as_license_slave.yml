@@ -1,0 +1,23 @@
+---
+- name: Wait for the license master
+  include_tasks: wait_for_khulnasoft_instance.yml
+  vars:
+    scheme: "{{ khulnasoft.license_master_url | urlsplit('scheme') }}"
+    khulnasoft_instance_address: "{{ khulnasoft.license_master_url | urlsplit('hostname') }}"
+    port: "{{ khulnasoft.license_master_url | urlsplit('port') }}"
+  no_log: "{{ hide_password }}"
+
+- name: Set node as license slave
+  command: "{{ khulnasoft.exec }} edit licenser-localslave -master_uri {{ khulnasoft.license_master_url }} -auth '{{ khulnasoft.admin_user }}:{{ khulnasoft.password }}'"
+  become: yes
+  become_user: "{{ khulnasoft.user }}"
+  register: linux_set_lic_slave
+  until: linux_set_lic_slave.rc == 0
+  changed_when: linux_set_lic_slave.rc == 0 and "licenser-localslave object has been edited" in linux_set_lic_slave.stdout
+  failed_when: linux_set_lic_slave.rc !=0 and "does not support being a remote master" in linux_set_lic_slave.stderr
+  retries: "{{ retry_num }}"
+  delay: "{{ retry_delay }}"
+  notify:
+    - Restart the khulnasoftd service
+  ignore_errors: yes
+  no_log: "{{ hide_password }}"

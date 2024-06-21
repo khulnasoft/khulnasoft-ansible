@@ -1,0 +1,20 @@
+---
+# Restarts may be required for the node to register as a search head.
+# This is a pre-requisite for using the 'add cluster-master' command
+- name: Flush restart handlers
+  meta: flush_handlers
+
+# https://docs.khulnasoft.com/Documentation/Khulnasoft/latest/Indexer/Configuremulti-clustersearch
+# TODO: Should we support 'remove cluster-master'?
+- name: Peer auxiliary cluster masters
+  command: "{{ khulnasoft.exec }} add cluster-master {{ item.url }} -secret '{{ item.pass4SymmKey }}' -auth '{{ khulnasoft.admin_user }}:{{ khulnasoft.password }}'"
+  become: yes
+  become_user: "{{ khulnasoft.user }}"
+  register: peer_aux_cluster_master
+  until: peer_aux_cluster_master.rc == 0 or "already exists" in peer_aux_cluster_master.stderr
+  changed_when: peer_aux_cluster_master.rc == 0
+  failed_when: peer_aux_cluster_master.rc != 0 and "already exists" not in peer_aux_cluster_master.stderr
+  with_items: "{{ khulnasoft.auxiliary_cluster_masters }}"
+  notify:
+    - Restart the khulnasoftd service
+  no_log: "{{ hide_password }}"

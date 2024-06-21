@@ -1,0 +1,9 @@
+---
+- name: Update Khulnasoft directory owner
+  file:
+    path: "{{ khulnasoft.home }}"
+    owner: "{{ khulnasoft.user }}"
+    group: "{{ khulnasoft.group }}"
+    recurse: yes
+  become: yes
+  become_user: "{{ privileged_user }}"

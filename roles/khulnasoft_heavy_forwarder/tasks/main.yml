@@ -1,0 +1,41 @@
+---
+- include_tasks: ../../../roles/khulnasoft_common/tasks/set_as_hec_receiver.yml
+
+- include_tasks: ../../../roles/khulnasoft_common/tasks/set_as_deployment_client.yml
+  when:
+    - khulnasoft.deployment_server is defined
+    - khulnasoft.deployment_server
+
+- name: Flush restart handlers
+  meta: flush_handlers
+
+- include_tasks: ../../khulnasoft_common/tasks/add_khulnasoft_object.yml
+  when: khulnasoft.add is defined
+
+- include_tasks: ../../../roles/khulnasoft_common/tasks/provision_apps.yml
+  when: "'apps_location' in khulnasoft and khulnasoft.apps_location"
+  vars:
+    app_list: "{{ khulnasoft.apps_location }}"
+
+- include_tasks: ../../../roles/khulnasoft_common/tasks/provision_apps.yml
+  when:
+    - "'app_paths_install' in khulnasoft and 'default' in khulnasoft.app_paths_install and khulnasoft.app_paths_install.default"
+  vars:
+    app_list: "{{ khulnasoft.app_paths_install.default }}"
+
+- name: Execute Khulnasoft commands
+  command: "{{ khulnasoft.exec }} {{ item }} -auth {{ khulnasoft.admin_user }}:{{ khulnasoft.password }}"
+  become: yes
+  become_user: "{{ khulnasoft.user }}"
+  with_items: "{{ khulnasoft.cmd }}"
+  register: task_result
+  until: task_result.rc == 0 or "already exists" in task_result.stderr
+  retries: "{{ retry_num }}"
+  delay: "{{ retry_delay }}"
+  when: khulnasoft.cmd is defined
+  no_log: "{{ hide_password }}"
+  ignore_errors: true
+  notify:
+    - Restart the khulnasoftd service
+
+- include_tasks: ../../../roles/khulnasoft_common/tasks/check_for_required_restarts.yml

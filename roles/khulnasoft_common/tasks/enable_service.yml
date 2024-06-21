@@ -1,0 +1,99 @@
+---
+- name: "Retrieve Khulnasoft version"
+  command: "{{ khulnasoft.exec }} version --accept-license --answer-yes --no-prompt"
+  register: installed_khulnasoft_version
+  become: yes
+  become_user: "{{ khulnasoft.user }}"
+  when: ansible_system is match("Linux")
+
+- name: "Set installed version fact"
+  set_fact:
+    installed_khulnasoft_version: "{{ installed_khulnasoft_version.stdout | regex_search(regexp, '\\1') }}"
+  vars:
+    regexp: 'Khulnasoft(?:\sUniversal\sForwarder)?\s((\d+)\.(\d+)\.(\d+)).*'
+  when: ansible_system is match("Linux")
+
+- name: "Enable service via boot-start - Linux (systemd)"
+  become: yes
+  become_user: "{{ privileged_user }}"
+  command: "{{ khulnasoft.exec }} enable boot-start -systemd-managed 1 -user {{ khulnasoft.user }} --accept-license --answer-yes --no-prompt"
+  when:
+    - ansible_system is match("Linux")
+    - khulnasoft_systemd
+    - installed_khulnasoft_version[0] is version("7.2.2", ">=")
+
+# Using service file approach for systemd rather than 'boot-start' with
+# 'systemd-unit-file-name' option because cli's versions older than 7.2.2 do
+# not implement systemd in boot-start command.
+- name: "Copy Khulnasoftd unit file - Linux (systemd)"
+  template:
+    src: Khulnasoftd.service.j2
+    dest: "/etc/systemd/system/{{ khulnasoft_service_name }}"
+    owner: "{{ privileged_user }}"
+    group: "{{ privileged_user }}"
+    mode: 0644
+  become: yes
+  become_user: "{{ privileged_user }}"
+  register: khulnasoftd_unit_file
+  when:
+    - ansible_system is match("Linux")
+    - khulnasoft_systemd
+    - installed_khulnasoft_version[0] is version("7.2.2", "<")
+
+- name: Update systemd settings
+  when:
+    - ansible_system is match("Linux")
+    - khulnasoft_systemd
+    - installed_khulnasoft_version[0] is version("7.2.2", ">=")
+  become: yes
+  become_user: "{{ privileged_user }}"
+  block:
+  - name: Update cpu cgroup
+    replace:
+      path: "/etc/systemd/system/{{ khulnasoft_service_name }}"
+      regexp: '^ExecStartPost=.*/sys/fs/cgroup/cpu.*$'
+      replace: 'ExecStartPost=/bin/bash -c "chown -R {{ khulnasoft.user }}:{{ khulnasoft.group }} /sys/fs/cgroup/cpu/system.slice/%n"'
+    when: installed_khulnasoft_version[0] is version("8.0.0", "<")
+
+  - name: Update memory cgroup
+    replace:
+      path: "/etc/systemd/system/{{ khulnasoft_service_name }}"
+      regexp: '^ExecStartPost=.*/sys/fs/cgroup/memory.*$'
+      replace: 'ExecStartPost=/bin/bash -c "chown -R {{ khulnasoft.user }}:{{ khulnasoft.group }} /sys/fs/cgroup/memory/system.slice/%n"'
+    when: installed_khulnasoft_version[0] is version("8.0.0", "<")
+
+  - name: Disable cgroup per Khulnasoft version
+    replace:
+      path: "/etc/systemd/system/{{ khulnasoft_service_name }}"
+      regexp: '^ExecStartPost=(.*)$'
+      replace: '#ExecStartPost=\1'
+    when:
+      - installed_khulnasoft_version[0] is version("8.0.0", ">=")
+      - installed_khulnasoft_version[0] is version("8.1.0", "<")
+
+  - name: Remove init.scope pathing
+    replace:
+      path: "/etc/systemd/system/{{ khulnasoft_service_name }}"
+      regexp: '^(ExecStartPost=.*?)\/init.scope\/(.*)'
+      replace: '\1/\2'
+
+- name: "Reload daemons via systemctl - Linux (systemd)"
+  become: yes
+  become_user: "{{ privileged_user }}"
+  systemd:
+    daemon-reload: yes
+    name: "{{ khulnasoft_service_name }}"
+    enabled: true
+  when:
+    - ansible_system is match("Linux")
+    - khulnasoft_systemd
+
+- name: "Enable service via boot-start - Linux (init)"
+  command: "{{ khulnasoft.exec }} enable boot-start -user {{ khulnasoft.user }} --accept-license --answer-yes --no-prompt"
+  become: yes
+  become_user: "{{ privileged_user }}"
+  when: ansible_system is match("Linux") and not khulnasoft_systemd
+
+- name: "Enable service via boot-start - Windows"
+  command: "{{ khulnasoft.exec }} enable boot-start -user {{ khulnasoft.user }} --accept-license --answer-yes --no-prompt"
+  when: ansible_os_family == "Windows"

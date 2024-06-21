@@ -1,0 +1,37 @@
+---
+- hosts: all
+  gather_facts: False
+  pre_tasks:
+    - name: Install python for Ansible
+      raw: test -e /usr/bin/python || (apt -y update && apt install -y python-minimal)
+      register: output
+      changed_when: output.stdout != ""
+
+    - name: Setup ansible group
+      group:
+        name: ansible
+        state: present
+
+    - name: Setup ansible user
+      user:
+        name: ansible
+        state: present
+        group: ansible
+
+    - name: Setup khulnasoft group
+      group:
+        name: khulnasoft
+        state: present
+
+    - name: Setup khulnasoft user
+      user:
+        name: khulnasoft
+        state: present
+        group: khulnasoft
+
+- hosts: all
+  gather_facts: True
+  tasks:
+    - name: echo hello_world on each host
+      command: echo "hello_world"
+      register: hello_world

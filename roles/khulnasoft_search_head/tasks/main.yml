@@ -1,0 +1,76 @@
+---
+- name: Set default captaincy
+  set_fact:
+    khulnasoft_search_head_captain: false
+
+- name: Determine captaincy
+  set_fact:
+    khulnasoft_search_head_captain: true
+  when: ansible_hostname == khulnasoft.search_head_captain_url or
+        ansible_fqdn == khulnasoft.search_head_captain_url or
+        khulnasoft.hostname == khulnasoft.search_head_captain_url or
+        khulnasoft.role == "khulnasoft_search_head_captain"
+
+- include_tasks: search_head_clustering.yml
+  when:
+    - khulnasoft_search_head_cluster | bool
+    - "'deployer_url' in khulnasoft and khulnasoft.deployer_url"
+
+## Indexer Clustering Scenario
+- include_tasks: ../../khulnasoft_common/tasks/peer_cluster_master.yml
+  when:
+    - khulnasoft_indexer_cluster | bool
+    - khulnasoft.multisite_master is not defined
+    - khulnasoft.set_search_peers is defined
+    - khulnasoft.set_search_peers | bool
+
+## Non Indexer Clustering Scenario
+- include_tasks: ../../khulnasoft_common/tasks/peer_indexers.yml
+  vars:
+    idx: "{{ item }}"
+  with_items: "{{ groups['khulnasoft_indexer'] }}"
+  when:
+    - not khulnasoft_indexer_cluster | bool
+    - khulnasoft.multisite_master is not defined
+    - khulnasoft.set_search_peers is defined
+    - khulnasoft.set_search_peers | bool
+    - "'khulnasoft_indexer' in groups"
+
+- include_tasks: ../../../roles/khulnasoft_common/tasks/set_as_deployment_client.yml
+  when:
+    - khulnasoft.deployment_server is defined
+    - khulnasoft.deployment_server
+    - not khulnasoft_search_head_cluster | bool
+
+- include_tasks: ../../../roles/khulnasoft_common/tasks/provision_apps.yml
+  when:
+    - "'apps_location' in khulnasoft and khulnasoft.apps_location"
+    - not khulnasoft_search_head_cluster | bool
+    - khulnasoft.deployment_server is not defined or not khulnasoft.deployment_server
+  vars:
+    app_list: "{{ khulnasoft.apps_location }}"
+
+- include_tasks: ../../../roles/khulnasoft_common/tasks/provision_apps.yml
+  when:
+    - "'app_paths_install' in khulnasoft and 'default' in khulnasoft.app_paths_install and khulnasoft.app_paths_install.default"
+    - not khulnasoft_search_head_cluster | bool
+    - khulnasoft.deployment_server is not defined or not khulnasoft.deployment_server
+  vars:
+    app_list: "{{ khulnasoft.app_paths_install.default }}"
+
+- include_tasks: setup_multisite.yml
+  when:
+    - khulnasoft.site is defined
+    - khulnasoft.multisite_master is defined
+
+- include_tasks: ../../khulnasoft_common/tasks/enable_forwarder_monitoring.yml
+  when:
+    - dmc_forwarder_monitoring is defined
+    - dmc_forwarder_monitoring | bool
+
+- include_tasks: ../../../roles/khulnasoft_common/tasks/enable_dfs.yml
+  when:
+    - "'dfs' in khulnasoft and 'enable' in khulnasoft.dfs and khulnasoft.dfs.enable is not none"
+    - khulnasoft.dfs.enable | bool
+
+- include_tasks: ../../../roles/khulnasoft_common/tasks/check_for_required_restarts.yml

@@ -1,0 +1,109 @@
+---
+# TODO: Maybe we can make this a REST call?
+- name: Set deployer SHC key and label
+  ini_file:
+    dest: "{{ khulnasoft.home }}/etc/system/local/server.conf"
+    section: shclustering
+    option: "{{ item.opt }}"
+    value: "{{ item.val }}"
+    mode: 0644
+  with_items:
+    - { opt: 'pass4SymmKey', val: '{{ khulnasoft.shc.pass4SymmKey }}' }
+    - { opt: 'shcluster_label', val: '{{ khulnasoft.shc.label }}' }
+  loop_control:
+    label: "{{ item.opt }}"
+  become: yes
+  become_user: "{{ khulnasoft.user }}"
+  no_log: "{{ hide_password }}"
+  notify:
+    - Restart the khulnasoftd service
+
+# https://docs.khulnasoft.com/Documentation/Khulnasoft/latest/DistSearch/PropagateSHCconfigurationchanges#Set_the_deployer_push_mode
+- name: Set deployer push mode
+  khulnasoft_api:
+    method: POST
+    url: "/servicesNS/nobody/system/configs/conf-app/shclustering"
+    cert_prefix: "{{ cert_prefix }}"
+    username: "{{ khulnasoft.admin_user }}"
+    password: "{{ khulnasoft.password }}"
+    svc_port: "{{ khulnasoft.svc_port }}"
+    body:
+      deployer_push_mode: "{{ khulnasoft.shc.deployer_push_mode }}"
+    body_format: "form-urlencoded"
+    status_code: [200]
+    timeout: 10
+    use_proxy: no
+  when: "'deployer_push_mode' in khulnasoft.shc and khulnasoft.shc.deployer_push_mode"
+  no_log: "{{ hide_password }}"
+
+- name: Flush restart handlers
+  meta: flush_handlers
+
+- name: Wait for SHC to be ready
+  shc_ready:
+    captain_url="{{ khulnasoft.search_head_captain_url }}"
+    shc_peers="{{ groups['khulnasoft_search_head'] }}"
+    spl_user="{{ khulnasoft.admin_user }}"
+    spl_pass="{{ khulnasoft.password }}"
+  no_log: "{{ hide_password }}"
+  register: task_result
+  until: task_result.rc == 0
+  retries: "{{ shc_sync_retry_num }}"
+  delay: "{{ retry_delay }}"
+  when:
+    - khulnasoft_search_head_cluster | bool
+    - "'apps_location' in khulnasoft and khulnasoft.apps_location"
+
+- include_tasks: ../../../roles/khulnasoft_common/tasks/provision_apps.yml
+  when:
+    - "'apps_location' in khulnasoft and khulnasoft.apps_location"
+    - khulnasoft.deployment_server is not defined or not khulnasoft.deployment_server
+  vars:
+    app_list: "{{ khulnasoft.apps_location }}"
+
+# Only find and copy installed apps to the SHC bundle dir if we installed app via 'apps_location'
+- include_tasks: ../../../roles/khulnasoft_common/tasks/find_installed_apps.yml
+  when:
+    - "'apps_location' in khulnasoft and khulnasoft.apps_location"
+    - khulnasoft.deployment_server is not defined or not khulnasoft.deployment_server
+
+- include_tasks: ../../../roles/khulnasoft_common/tasks/copy_installed_apps.yml
+  when:
+    - "'apps_location' in khulnasoft and khulnasoft.apps_location"
+    - khulnasoft.deployment_server is not defined or not khulnasoft.deployment_server
+  vars:
+    apps: "{{ installed_apps }}"
+    dest: "{{ khulnasoft.app_paths.shc }}"
+
+- include_tasks: ../../../roles/khulnasoft_common/tasks/set_as_deployment_client.yml
+  when: khulnasoft.deployment_server is defined and khulnasoft.deployment_server
+
+- include_tasks: push_apps_to_search_heads.yml
+  when: "'apps_location' in khulnasoft and khulnasoft.apps_location"
+
+- include_tasks: ../../../roles/khulnasoft_common/tasks/extract_app.yml
+  when: "'app_paths_install' in khulnasoft and 'shc' in khulnasoft.app_paths_install and khulnasoft.app_paths_install.shc"
+  vars:
+    app_filepath: "{{ item }}"
+    extract_path: "{{ khulnasoft.app_paths.shc }}"
+  loop: "{{ khulnasoft.app_paths_install.shc }}"
+
+- include_tasks: bundle_push_to_search_heads.yml
+  when: "'app_paths_install' in khulnasoft and 'shc' in khulnasoft.app_paths_install and khulnasoft.app_paths_install.shc"
+
+- include_tasks: ../../../roles/khulnasoft_common/tasks/disable_installed_apps.yml
+  when: "'apps_location' in khulnasoft and khulnasoft.apps_location"
+
+# Now install local apps in apps_location_local exists
+- include_tasks: ../../../roles/khulnasoft_common/tasks/provision_apps.yml
+  when: "'apps_location_local' in khulnasoft and khulnasoft.apps_location_local"
+  vars:
+    app_list: "{{ khulnasoft.apps_location_local }}"
+
+- include_tasks: ../../roles/khulnasoft_common/tasks/provision_apps.yml
+  when:
+    - "'app_paths_install' in khulnasoft and 'default' in khulnasoft.app_paths_install and khulnasoft.app_paths_install.default"
+  vars:
+    app_list: "{{ khulnasoft.app_paths_install.default }}"
+
+- include_tasks: ../../../roles/khulnasoft_common/tasks/check_for_required_restarts.yml

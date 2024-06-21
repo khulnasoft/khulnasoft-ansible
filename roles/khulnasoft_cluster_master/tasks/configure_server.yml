@@ -1,0 +1,8 @@
+- name: Configure all indexers cache manager
+  ini_file:
+    dest: "{{ khulnasoft.home }}/etc/master-apps/_cluster/local/server.conf"
+    section: "cachemanager"
+    option: "{{ item.key }}"
+    value: "{{ item.value }}"
+  with_dict: "{{ khulnasoft.smartstore.cachemanager }}"
+  when: khulnasoft.smartstore.cachemanager is defined

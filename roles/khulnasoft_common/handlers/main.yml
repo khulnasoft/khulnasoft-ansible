@@ -1,0 +1,4 @@
+---
+# handlers file for khulnasoft_common
+- name: "Restart the khulnasoftd service"
+  include_tasks: ../handlers/restart_khulnasoft.yml

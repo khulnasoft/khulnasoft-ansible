@@ -1,0 +1,15 @@
+---
+khulnasoft:
+  role: khulnasoft_universal_forwarder
+  conf:
+    - key: user-prefs
+      value:
+        directory: /opt/khulnasoftforwarder/etc/users/admin/user-prefs/local
+        content:
+          general:
+            default_namespace: appboilerplate
+            search_syntax_highlighting: dark
+  enable_service: true
+  hec:
+    token: abcd1234
+  password: helloworld

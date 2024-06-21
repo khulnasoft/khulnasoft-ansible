@@ -1,0 +1,5 @@
+---
+- name: Converge
+  hosts: khulnasoft
+  roles:
+    - role: khulnasoft_universal_forwarder

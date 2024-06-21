@@ -1,0 +1,9 @@
+---
+- name: Set Khulnasoftd Connection Timeout
+  ini_file:
+    dest: "{{ khulnasoft.home }}/etc/system/local/web.conf"
+    section: settings
+    option: "khulnasoftdConnectionTimeout"
+    value: "{{ khulnasoft.connection_timeout }}"
+    owner: "{{ khulnasoft.user }}"
+    group: "{{ khulnasoft.group }}"

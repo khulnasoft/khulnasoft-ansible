@@ -1,0 +1,24 @@
+---
+- include_tasks: ../../../roles/khulnasoft_common/tasks/find_installed_apps.yml
+
+- include_tasks: ../../../roles/khulnasoft_common/tasks/copy_installed_apps.yml
+  vars:
+    apps: "{{ installed_apps }}"
+    dest: "{{ khulnasoft.app_paths.shc }}"
+
+- name: Apply shcluster bundle
+  command: "{{ khulnasoft.exec }} apply shcluster-bundle -target {{ cert_prefix }}://{{ khulnasoft.search_head_captain_url }}:{{ khulnasoft.svc_port }} -auth {{ khulnasoft.admin_user }}:{{ khulnasoft.password }} --answer-yes -push-default-apps true"
+  become: yes
+  become_user: "{{ khulnasoft.user }}"
+  no_log: "{{ hide_password }}"
+  register: shcluster_bundle
+  until: shcluster_bundle.rc == 0 or "Found zero deployable apps" in shcluster_bundle.stderr
+  changed_when: shcluster_bundle.rc == 0
+  failed_when: shcluster_bundle.rc != 0 and "Found zero deployable apps" not in shcluster_bundle.stderr
+  retries: "{{ retry_num }}"
+  delay: "{{ retry_delay }}"
+  ignore_errors: true
+
+- debug:
+    msg: "WARNING: Applying shcluster bundle failed - proceeding anyways..."
+  when: shcluster_bundle.rc != 0

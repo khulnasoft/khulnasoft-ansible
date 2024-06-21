@@ -1,0 +1,29 @@
+---
+- include_tasks: ../../khulnasoft_common/tasks/enable_forwarding.yml
+
+- include_tasks: ../../khulnasoft_common/tasks/provision_apps.yml
+  when: "'apps_location' in khulnasoft and khulnasoft.apps_location"
+  vars:
+    app_list: "{{ khulnasoft.apps_location }}"
+
+- include_tasks: ../../khulnasoft_common/tasks/provision_apps.yml
+  when:
+    - "'app_paths_install' in khulnasoft and 'default' in khulnasoft.app_paths_install and khulnasoft.app_paths_install.default"
+  vars:
+    app_list: "{{ khulnasoft.app_paths_install.default }}"
+
+- name: Enable license master local indexing
+  ini_file:
+    path: "{{ khulnasoft.home }}/etc/system/local/outputs.conf"
+    section: "tcpout"
+    option: "indexAndForward"
+    value: "true"
+    owner: "{{ khulnasoft.user }}"
+    group: "{{ khulnasoft.group }}"
+  register: lm_local_indexing
+
+# Restart only when Khulnasoft is running and when any of the above have changed
+- include_tasks: ../../khulnasoft_common/tasks/trigger_restart.yml
+  when: lm_local_indexing is changed
+
+- include_tasks: ../../khulnasoft_common/tasks/check_for_required_restarts.yml

@@ -1,0 +1,41 @@
+---
+- name: Prepare
+  hosts: khulnasoft
+  tasks:
+    - name: Check khulnasoft user
+      user:
+        name: khulnasoft
+        password: "*"
+        state: present
+      become: true
+
+    - name: Check packages
+      package:
+        name:
+          - procps
+          - curl
+          - net-tools
+        state: latest
+
+    - name: Copy khulnasoft_app_httpexample
+      copy:
+        src: "{{ playbook_dir }}/../../../../tests/fixtures/khulnasoft_app_httpexample"
+        dest: /tmp/
+
+    - name: Archive khulnasoft_app_httpexample
+      archive:
+        path: /tmp/khulnasoft_app_httpexample
+        dest: /tmp/khulnasoft_app_httpexample.tgz
+
+- name: Prepare
+  hosts: nginx-apps-server
+  tasks:
+    - name: Copy khulnasoft_app_simple
+      copy:
+        src: "{{ playbook_dir }}/../../../../tests/fixtures/khulnasoft_app_simple"
+        dest: /usr/share/nginx/html/
+
+    - name: Archive khulnasoft_app_simple
+      archive:
+        path: /usr/share/nginx/html/khulnasoft_app_simple
+        dest: /usr/share/nginx/html/khulnasoft_app_simple.tgz

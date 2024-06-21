@@ -1,0 +1,11 @@
+wheel
+pytest
+pylint
+mock
+docker
+requests
+coverage
+caniusepython3
+ansible
+ansible-lint
+testinfra

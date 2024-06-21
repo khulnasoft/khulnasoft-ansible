@@ -1,0 +1,61 @@
+---
+- include_tasks: get_khulnasoft_status.yml
+
+- name: "Start Khulnasoft"
+  when: khulnasoft_status.rc != 0
+  block:
+  - name: Cleanup Khulnasoft runtime files
+    file:
+      state: absent
+      path: "{{ item }}"
+    with_items:
+      - "{{ khulnasoft.home }}/var/run/khulnasoft/khulnasoftd.pid"
+      - "{{ khulnasoft.home }}/var/lib/khulnasoft/kvstore/mongo/mongod.lock"
+    become: yes
+    become_user: "{{ khulnasoft.user }}"
+
+  - name: "Restrict permissions on khulnasoft.key"
+    include_tasks: restrict_permissions.yml
+    vars:
+      file_path: "{{ item }}"
+    with_items:
+      - "{{ khulnasoft.home }}/var/lib/khulnasoft/kvstore/mongo/khulnasoft.key"
+
+  - name: "Start Khulnasoft via CLI"
+    command: "{{ khulnasoft.exec }} start --accept-license --answer-yes --no-prompt"
+    register: start_khulnasoft
+    changed_when: start_khulnasoft.rc == 0 and 'already running' not in start_khulnasoft.stdout
+    when: not khulnasoft.enable_service
+    until: start_khulnasoft.rc == 0
+    retries: 5
+    delay: 10
+    become: yes
+    become_user: "{{ khulnasoft.user }}"
+
+  - name: "Start Khulnasoft via service"
+    service:
+      name: "{{ khulnasoft_service_name }}"
+      state: started
+    become: yes
+    become_user: "{{ privileged_user }}"
+    when:
+      - khulnasoft.enable_service
+      - ansible_system is match("Linux")
+
+  - name: "Start Khulnasoft via Windows service"
+    win_service:
+      name: khulnasoftd
+      state: started
+    when:
+      - khulnasoft.enable_service
+      - ansible_os_family == "Windows"
+
+- include_tasks: check_uds_file.yml
+
+- name: "Wait for khulnasoftd management port"
+  wait_for:
+    port: "{{ khulnasoft.svc_port }}"
+  when: not uds_enabled | bool
+
+- name: Flush restart handlers
+  meta: flush_handlers

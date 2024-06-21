@@ -1,0 +1,20 @@
+---
+- name: Disable Web UI
+  ini_file:
+    dest: "{{ khulnasoft.home }}/etc/system/local/web.conf"
+    section: settings
+    option: "startwebserver"
+    value: "{{ khulnasoft.http_port }}"
+    owner: "{{ khulnasoft.user }}"
+    group: "{{ khulnasoft.group }}"
+  when: khulnasoft.http_port == 0
+
+- name: Set HTTP Port
+  ini_file:
+    dest: "{{ khulnasoft.home }}/etc/system/local/web.conf"
+    section: settings
+    option: "httpport"
+    value: "{{ khulnasoft.http_port }}"
+    owner: "{{ khulnasoft.user }}"
+    group: "{{ khulnasoft.group }}"
+  when: khulnasoft.http_port != 0

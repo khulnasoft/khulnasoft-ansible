@@ -1,0 +1,23 @@
+---
+- include_tasks: ../../../roles/khulnasoft_common/tasks/wait_for_khulnasoft_instance.yml
+  vars:
+    khulnasoft_instance_address: "{{ khulnasoft.multisite_master }}"
+
+- name: Convert Extrenal Cluster Master Name into Internal URI
+  set_fact:
+      multisite_master_uri: "{{ cert_prefix }}://{{ khulnasoft.multisite_master }}:{{ khulnasoft.svc_port }}"
+
+- name: Setup Peers with Associated Site
+  command: "{{ khulnasoft.exec }} edit cluster-config -mode slave -site {{ khulnasoft.site }} -master_uri {{ multisite_master_uri }} -replication_port {{ khulnasoft.idxc.replication_port }} -auth {{ khulnasoft.admin_user }}:{{ khulnasoft.password }} -secret {{ khulnasoft.idxc.pass4SymmKey }}"
+  become: yes
+  become_user: "{{ khulnasoft.user }}"
+  register: task_result
+  changed_when: task_result.rc == 0
+  until: task_result.rc == 0
+  retries: "{{ retry_num }}"
+  delay: "{{ retry_delay }}"
+  notify:
+      - Restart the khulnasoftd service
+  no_log: "{{ hide_password }}"
+
+#INFRA-38882: Update

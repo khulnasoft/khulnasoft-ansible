@@ -1,0 +1,32 @@
+---
+khulnasoft:
+  role: khulnasoft_standalone
+  appserver:
+    port: 8066
+  kvstore:
+    port: 18191
+  build_location: https://download.khulnasoft.com/products/khulnasoft/releases/7.3.5/linux/khulnasoft-7.3.5-86fd62efc3d7-Linux-x86_64.tgz
+  conf:
+  - key: user-prefs
+    value:
+      directory: /opt/khulnasoft/etc/users/admin/user-prefs/local
+      content:
+        general:
+          default_namespace: appboilerplate
+          search_syntax_highlighting: dark
+          search_assistant:
+        "serverClass:secrets:app:test": {}
+  hec:
+    port: 8099
+    ssl: false
+    token: qwerty789
+  http_port: 8080
+  launch:
+    OPTIMISTIC_ABOUT_FILE_LOCKING: 1
+    TEST: A=B
+  password: helloworld2
+  root_endpoint: /khulnasoftui
+  s2s:
+    port: 9999
+  secret: "pewpewpew"
+  svc_port: 8090

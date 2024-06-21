@@ -1,0 +1,38 @@
+---
+- name: Set indexer discovery
+  uri:
+    url: "{{ cert_prefix }}://127.0.0.1:{{ khulnasoft.svc_port }}/servicesNS/nobody/system/configs/conf-server"
+    method: POST
+    user: "{{ khulnasoft.admin_user }}"
+    password: "{{ khulnasoft.password }}"
+    force_basic_auth: yes
+    validate_certs: False
+    body:
+      name: "indexer_discovery"
+      pass4SymmKey: "{{ khulnasoft.idxc.discoveryPass4SymmKey if khulnasoft.idxc.discoveryPass4SymmKey is defined and khulnasoft.idxc.discoveryPass4SymmKey else khulnasoft.idxc.pass4SymmKey }}"
+    body_format: "form-urlencoded"
+    status_code: 201,409
+    timeout: 10
+    use_proxy: no
+  register: set_indexer_discovery
+  changed_when: set_indexer_discovery.status == 201
+  no_log: "{{ hide_password }}"
+
+- include_tasks: enable_smartstore.yml
+  when: khulnasoft.smartstore
+
+- name: Set the current node as a Khulnasoft indexer cluster master
+  command: "{{ khulnasoft.exec }} edit cluster-config -mode master -replication_factor {{ khulnasoft.idxc.replication_factor }} -search_factor {{ khulnasoft.idxc.search_factor }} -secret '{{ khulnasoft.idxc.pass4SymmKey }}' -cluster_label '{{ khulnasoft.idxc.label }}' -auth '{{ khulnasoft.admin_user }}:{{ khulnasoft.password }}'"
+  register: task_result
+  until: task_result.rc == 0
+  changed_when: task_result.rc == 0
+  retries: "{{ retry_num }}"
+  delay: "{{ retry_delay }}"
+  notify:
+    - Restart the khulnasoftd service
+  become: yes
+  become_user: "{{ khulnasoft.user }}"
+  no_log: "{{ hide_password }}"
+
+- name: Flush restart handlers
+  meta: flush_handlers

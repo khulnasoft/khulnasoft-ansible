@@ -1,0 +1,49 @@
+---
+- name: Enable Web SSL
+  ini_file:
+    dest: "{{ khulnasoft.home }}/etc/system/local/web.conf"
+    section: settings
+    option: "enableKhulnasoftWebSSL"
+    value: "{{ khulnasoft.http_enableSSL }}"
+    owner: "{{ khulnasoft.user }}"
+    group: "{{ khulnasoft.group }}"
+    mode: 0660
+
+- name: Set Web certificate path
+  ini_file:
+    dest: "{{ khulnasoft.home }}/etc/system/local/web.conf"
+    section: settings
+    option: "serverCert"
+    value: "{{ khulnasoft.http_enableSSL_cert }}"
+    owner: "{{ khulnasoft.user }}"
+    group: "{{ khulnasoft.group }}"
+    mode: 0660
+  when:
+    - khulnasoft.http_enableSSL_cert is defined
+    - khulnasoft.http_enableSSL_cert
+
+- name: Set Web private key path
+  ini_file:
+    dest: "{{ khulnasoft.home }}/etc/system/local/web.conf"
+    section: settings
+    option: "privKeyPath"
+    value: "{{ khulnasoft.http_enableSSL_privKey }}"
+    owner: "{{ khulnasoft.user }}"
+    group: "{{ khulnasoft.group }}"
+    mode: 0660
+  when:
+    - khulnasoft.http_enableSSL_privKey is defined
+    - khulnasoft.http_enableSSL_privKey
+
+- name: Set Web private key password
+  ini_file:
+    dest: "{{ khulnasoft.home }}/etc/system/local/web.conf"
+    section: settings
+    option: "sslPassword"
+    value: "{{ khulnasoft.http_enableSSL_privKey_password }}"
+    owner: "{{ khulnasoft.user }}"
+    group: "{{ khulnasoft.group }}"
+    mode: 0660
+  when:
+    - khulnasoft.http_enableSSL_privKey_password is defined
+    - khulnasoft.http_enableSSL_privKey_password

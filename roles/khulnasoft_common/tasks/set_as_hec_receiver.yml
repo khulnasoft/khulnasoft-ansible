@@ -1,0 +1,73 @@
+---
+# TODO: Remove all secondary conditionals on deprecation of khulnasoft.hec_* variables
+
+- name: Get existing HEC token
+  khulnasoft_api:
+    url: "/services/data/inputs/http/khulnasoft_hec_token?output_mode=json"
+    method: GET
+    cert_prefix: "{{ cert_prefix }}"
+    username: "{{ khulnasoft.admin_user }}"
+    password: "{{ khulnasoft.password }}"
+    status_code: [200, 404]
+    svc_port: "{{ khulnasoft.svc_port }}"
+  register: hec_token
+  when: ('hec' in khulnasoft and 'token' in khulnasoft.hec) or ('hec_token' in khulnasoft)
+
+- name: Attempt
+  debug:
+    msg: "{{ hec_token.status }}"
+
+# The REST API does not support modifying tokens in-place, so we'll need to delete/re-create
+- name: Remove existing HEC token
+  khulnasoft_api:
+    url: "/services/data/inputs/http/khulnasoft_hec_token"
+    method: DELETE
+    cert_prefix: "{{ cert_prefix }}"
+    username: "{{ khulnasoft.admin_user }}"
+    password: "{{ khulnasoft.password }}"
+    status_code: [200, 404]
+    svc_port: "{{ khulnasoft.svc_port }}"
+    timeout: 60
+    use_proxy: no
+  register: delete_hec_token
+  changed_when: delete_hec_token.status == 200
+  when:
+    #- "khulnasoft.khulnasoft_http_enabled"
+    - hec_token is defined and hec_token.status == 200
+    - ('hec' in khulnasoft and 'token' in khulnasoft.hec and hec_token.json['entry'][0]['content']['token'] != khulnasoft.hec.token) or ('hec_token' in khulnasoft and hec_token.json['entry'][0]['content']['token'] != khulnasoft.hec_token)
+  no_log: "{{ hide_password }}"
+
+- name: Update HEC token configuration
+  khulnasoft_api:
+    url: "/services/data/inputs/http"
+    method: POST
+    cert_prefix: "{{ cert_prefix }}"
+    username: "{{ khulnasoft.admin_user }}"
+    password: "{{ khulnasoft.password }}"
+    svc_port: "{{ khulnasoft.svc_port }}"
+    body:
+      name: "khulnasoft_hec_token"
+      token: "{% if 'hec' in khulnasoft and 'token' in khulnasoft.hec and khulnasoft.hec.token %}{{ khulnasoft.hec.token }}{% else %}{{ khulnasoft.hec_token }}{% endif %}"
+    body_format: "form-urlencoded"
+    status_code: [201,409]
+  register: create_hec_token
+  changed_when: create_hec_token.status == 201
+  when:
+    - ('hec' in khulnasoft and 'token' in khulnasoft.hec and khulnasoft.hec.token) or ('hec_token' in khulnasoft and khulnasoft.hec_token)
+
+- name: Setup global HEC
+  khulnasoft_api:
+    url: "/services/data/inputs/http/http"
+    method: POST
+    cert_prefix: "{{ cert_prefix }}"
+    username: "{{ khulnasoft.admin_user }}"
+    password: "{{ khulnasoft.password }}"
+    svc_port: "{{ khulnasoft.svc_port }}"
+    body:
+      disabled: "{% if ('hec' in khulnasoft and 'enable' in khulnasoft.hec and khulnasoft.hec.enable | bool) or ('hec_disabled' in khulnasoft and not khulnasoft.hec_disabled | bool) %}0{% else %}1{% endif %}"
+      enableSSL: "{% if ('hec' in khulnasoft and 'ssl' in khulnasoft.hec and khulnasoft.hec.ssl | bool) or ('hec_enableSSL' in khulnasoft and khulnasoft.hec_enableSSL | bool) %}1{% else %}0{% endif %}"
+      port: "{% if 'hec' in khulnasoft and 'port' in khulnasoft.hec and khulnasoft.hec.port %}{{ khulnasoft.hec.port }}{% elif 'hec_port' in khulnasoft and khulnasoft.hec_port %}{{ khulnasoft.hec_port }}{% else %}8088{% endif %}"
+      serverCert: "{% if 'hec' in khulnasoft and 'cert' in khulnasoft.hec and khulnasoft.hec.cert %}{{ khulnasoft.hec.cert }}{% endif %}"
+      sslPassword: "{% if 'hec' in khulnasoft and 'password' in khulnasoft.hec and khulnasoft.hec.password %}{{ khulnasoft.hec.password }}{% endif %}"
+    body_format: "form-urlencoded"
+  register: sample

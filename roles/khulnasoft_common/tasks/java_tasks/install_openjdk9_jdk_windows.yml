@@ -1,0 +1,30 @@
+---
+- name: Download the Java distribution
+  get_url:
+    url: "https://download.java.net/openjdk/jdk9/ri/jdk-9+181_windows-x64_ri.zip"
+    dest: /home/khulnasoft/
+    timeout: 30
+    mode: 0666
+  register: download_result
+  until: download_result.status_code == 200
+  retries: "{{ retry_num }}"
+  delay: "{{ retry_delay }}"
+
+- name: Unzip the Java distribution
+  unarchive:
+    src: "/home/khulnasoft/jdk-9+181_windows-x64_ri.zip"
+    dest: /home/khulnasoft/
+
+- name: Write vars into .bash_profile
+  lineinfile:
+    path: /home/khulnasoft/.bash_profile
+    line: "JAVA_HOME=/home/khulnasoft/java-se-9-ri/jdk-9/"
+    create: yes
+  no_log: "{{ hide_password }}"
+
+- name: Write path into .bash_profile
+  lineinfile:
+    path: /home/khulnasoft/.bash_profile
+    line: "PATH=$PATH:$JAVA_HOME/bin"
+    create: yes
+  no_log: "{{ hide_password }}"

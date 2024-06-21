@@ -1,0 +1,91 @@
+---
+- include_tasks: ../../../roles/khulnasoft_common/tasks/wait_for_khulnasoft_instance.yml
+  vars:
+    khulnasoft_instance_address: "{{ khulnasoft.deployer_url }}"
+#INFRA-38882: Update exec command?
+- name: Initialize SHC cluster config
+  command: "{{ khulnasoft.exec }} init shcluster-config -auth '{{ khulnasoft.admin_user }}:{{ khulnasoft.password }}' -mgmt_uri '{{ cert_prefix }}://{{ khulnasoft.hostname }}:{{ khulnasoft.svc_port }}' -replication_port {{ khulnasoft.shc.replication_port }} -replication_factor {{ khulnasoft.shc.replication_factor }} -conf_deploy_fetch_url '{{ cert_prefix }}://{{ khulnasoft.deployer_url }}:{{ khulnasoft.svc_port }}' -secret '{{ khulnasoft.shc.pass4SymmKey }}' -shcluster_label '{{ khulnasoft.shc.label }}'"
+  become: yes
+  become_user: "{{ khulnasoft.user }}"
+  register: task_result
+  changed_when: task_result.rc == 0
+  until: task_result.rc == 0
+  retries: "{{ retry_num }}"
+  delay: "{{ retry_delay }}"
+  notify:
+    - Restart the khulnasoftd service
+  no_log: "{{ hide_password }}"
+
+- name: Set desired preferred captaincy
+  khulnasoft_api:
+    method: POST
+    url: "/servicesNS/nobody/system/configs/conf-server/shclustering"
+    username: "{{ khulnasoft.admin_user }}"
+    password: "{{ khulnasoft.password }}"
+    svc_port: "{{ khulnasoft.svc_port }}"
+    body:
+      preferred_captain: "{{ khulnasoft_search_head_captain | bool | lower }}"
+    body_format: "form-urlencoded"
+    status_code: "200,409"
+    timeout: 10
+    use_proxy: no
+    cert_prefix: "{{ cert_prefix }}"
+  notify:
+    - Restart the khulnasoftd service
+  register: preferred_captaincy_result
+  changed_when: false
+  no_log: "{{ hide_password }}"
+  when:
+    - khulnasoft_search_head_captain is defined and khulnasoft.preferred_captaincy | bool
+
+- name: Flush restart handlers
+  meta: flush_handlers
+
+- include_tasks: ../../../roles/khulnasoft_common/tasks/wait_for_khulnasoft_process.yml
+
+- include_tasks: ../../../roles/khulnasoft_common/tasks/wait_for_khulnasoft_instance.yml
+  vars:
+    khulnasoft_instance_address: "{{ khulnasoft.deployer_url }}"
+
+#INFRA-38882: Update exec command?
+- name: Boostrap SHC captain
+  command: "{{ khulnasoft.exec }} bootstrap shcluster-captain -servers_list '{% for host in groups['khulnasoft_search_head'] %}{{ cert_prefix }}://{{ host }}:{{ khulnasoft.svc_port }}{% if not loop.last %},{% endif %}{% endfor %}' -auth '{{ khulnasoft.admin_user }}:{{ khulnasoft.password }}'"
+  become: yes
+  become_user: "{{ khulnasoft.user }}"
+  when: khulnasoft_search_head_captain | bool
+  register: task_result
+  until: task_result.rc == 0 or "node seems to have already joined another cluster" in task_result.stderr
+  changed_when: task_result.rc == 0
+  failed_when: task_result.rc !=0 and "node seems to have already joined another cluster" not in task_result.stderr
+  retries: "{{ retry_num }}"
+  delay: "{{ retry_delay }}"
+  notify:
+    - Restart the khulnasoftd service
+  no_log: "{{ hide_password }}"
+
+#INFRA-38882: Update exec command?
+- name: Add new member to SHC
+  command: "{{ khulnasoft.exec }} add shcluster-member -current_member_uri {{ cert_prefix }}://{{ khulnasoft.search_head_captain_url }}:{{ khulnasoft.svc_port }} -auth {{ khulnasoft.admin_user }}:{{ khulnasoft.password }}"
+  become: yes
+  become_user: "{{ khulnasoft.user }}"
+  when: not khulnasoft_search_head_captain | bool
+  register: task_result
+  changed_when: task_result.rc == 0
+  failed_when: task_result.rc !=0 and "is already part of cluster" not in task_result.stderr
+  until: task_result.rc == 0 or "is already part of cluster" in task_result.stderr
+  retries: "{{ shc_sync_retry_num }}"
+  delay: "{{ retry_delay }}"
+  no_log: "{{ hide_password }}"
+
+- name: Destructive sync search head
+  command: "{{ khulnasoft.exec }} resync shcluster-replicated-config -auth {{ khulnasoft.admin_user }}:{{ khulnasoft.password }}"
+  become: yes
+  become_user: "{{ khulnasoft.user }}"
+  when: not khulnasoft_search_head_captain | bool
+  register: task_result
+  changed_when: task_result.rc == 0
+  failed_when: task_result.rc !=0 and "this instance is the captain" not in task_result.stderr
+  until: task_result.rc == 0 or "this instance is the captain" in task_result.stderr
+  retries: "{{ shc_sync_retry_num }}"
+  delay: "{{ retry_delay }}"
+  no_log: "{{ hide_password }}"

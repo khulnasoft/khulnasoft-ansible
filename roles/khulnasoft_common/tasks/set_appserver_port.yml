@@ -1,0 +1,9 @@
+---
+- name: Set appserver port
+  ini_file:
+    dest: "{{ khulnasoft.home }}/etc/system/local/web.conf"
+    section: settings
+    option: "appServerPorts"
+    value: "{{ khulnasoft.appserver.port }}"
+    owner: "{{ khulnasoft.user }}"
+    group: "{{ khulnasoft.group }}"

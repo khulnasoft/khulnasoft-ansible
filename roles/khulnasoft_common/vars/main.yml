@@ -1,0 +1,19 @@
+---
+default_apps: [ "legacy", "khulnasoft_gdi", "KhulnasoftForwarder", "KhulnasoftLightForwarder", "gettingstarted", "khulnasoft-dashboard-studio",
+                "alert_webhook", "khulnasoft_httpinput", "introspection_generator_addon", "user-prefs", "khulnasoft_essentials_9_0",
+                "appsbrowser", "framework", "learned", "launcher", "alert_logevent", "sample_app", "python_upgrade_readiness_app",
+                "khulnasoft_instrumentation", "search", "khulnasoft_archiver", "khulnasoft_monitoring_console", "khulnasoft_rapid_diag",
+                "_khulnasoft_config", "khulnasoft_enterprise_on_docker", "khulnasoft_forwarder_on_docker", "journald_input",
+                "khulnasoft_metrics_workspace", "khulnasoft_internal_metrics", "khulnasoft_telemetry", "khulnasoft_secure_gateway", "khulnasoft_assist" ]
+itsi_apps: [ "DA-ITSI-APPSERVER", "DA-ITSI-DATABASE", "DA-ITSI-EUEM", "DA-ITSI-LB", "DA-ITSI-OS",
+              "DA-ITSI-STORAGE", "DA-ITSI-VIRTUALIZATION", "DA-ITSI-WEBSERVER", "SA-ITOA", "SA-ITSI-ATAD", "SA-UserAccess",
+            "SA-ITSI-CustomModuleViz", "SA-ITSI-MetricAD", "SA-ITSI-Licensechecker", "itsi", "khulnasoft_app_infrastructure" ]
+ess_apps: [ "DA-ESS-AccessProtection", "DA-ESS-EndpointProtection", "DA-ESS-IdentityManagement", "DA-ESS-NetworkProtection",
+            "DA-ESS-ThreatIntelligence", "SA-AccessProtection", "SA-AuditAndDataProtection", "SA-EndpointProtection", "SA-IdentityManagement",
+            "SA-NetworkProtection", "SA-ThreatIntelligence", "SA-UEBA", "SA-Utils", "KhulnasoftEnterpriseSecuritySuite", "Khulnasoft_SA_CIM",
+            "Khulnasoft_SA_ExtremeSearch", "Khulnasoft_TA_bluecoat-proxysg", "Khulnasoft_TA_bro", "Khulnasoft_TA_flowfix", "Khulnasoft_TA_juniper",
+            "Khulnasoft_TA_mcafee", "Khulnasoft_TA_nessus", "Khulnasoft_TA_nix", "Khulnasoft_TA_oracle", "Khulnasoft_TA_ossec", "Khulnasoft_TA_rsa-securid",
+            "Khulnasoft_TA_sophos", "Khulnasoft_TA_sourcefire", "Khulnasoft_TA_symantec-ep", "Khulnasoft_TA_ueba", "Khulnasoft_TA_websense-cg", "Khulnasoft_TA_windows",
+            "TA-airdefense", "TA-alcatel", "TA-cef", "TA-fortinet", "TA-ftp", "TA-nmap", "TA-tippingpoint", "TA-trendmicro",
+            "Khulnasoft_ML_Toolkit", "Khulnasoft_SA_Scientific_Python_linux_x86_64", "Khulnasoft_SA_Scientific_Python_linux_x86",
+            "Khulnasoft_SA_Scientific_Python_darwin_x86_64", "Khulnasoft_SA_Scientific_Python_windows_x86_64" ]

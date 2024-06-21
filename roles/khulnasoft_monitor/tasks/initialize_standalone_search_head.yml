@@ -1,0 +1,39 @@
+---
+- include_tasks: ../../../roles/khulnasoft_monitor/tasks/adding_peers.yml
+
+- include_tasks: ../../../roles/khulnasoft_common/tasks/set_as_deployment_client.yml
+  when:
+    - khulnasoft.deployment_server is defined
+    - khulnasoft.deployment_server
+    - not khulnasoft_search_head_cluster | bool
+
+- include_tasks: ../../../roles/khulnasoft_common/tasks/provision_apps.yml
+  when:
+    - "'apps_location' in khulnasoft and khulnasoft.apps_location"
+    - khulnasoft.deployment_server is not defined or not khulnasoft.deployment_server
+  vars:
+    app_list: "{{ khulnasoft.apps_location }}"
+
+- include_tasks: ../../../roles/khulnasoft_common/tasks/provision_apps.yml
+  when:
+    - "'app_paths_install' in khulnasoft and 'default' in khulnasoft.app_paths_install and khulnasoft.app_paths_install.default"
+  vars:
+    app_list: "{{ khulnasoft.app_paths_install.default }}"
+
+- include_tasks: ../../khulnasoft_common/tasks/peer_cluster_master.yml
+  when:
+    - khulnasoft_indexer_cluster or khulnasoft.multisite_master is defined
+    - khulnasoft.set_search_peers is defined
+    - khulnasoft.set_search_peers | bool
+
+- include_tasks: setup_multisite.yml
+  when:
+    - khulnasoft.site is defined
+    - khulnasoft.multisite_master is defined
+
+- include_tasks: ../../khulnasoft_common/tasks/enable_forwarder_monitoring.yml
+  when:
+    - dmc_forwarder_monitoring is defined
+    - dmc_forwarder_monitoring | bool
+
+- include_tasks: ../../../roles/khulnasoft_common/tasks/check_for_required_restarts.yml

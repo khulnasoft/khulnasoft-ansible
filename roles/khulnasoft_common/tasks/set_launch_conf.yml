@@ -1,0 +1,10 @@
+---
+- name: Set khulnasoft-launch.conf variables
+  lineinfile:
+    path: "{{ khulnasoft.home }}/etc/khulnasoft-launch.conf"
+    regexp: "^{{ item.key }}"
+    line: "{{ item.key }}={{ item.value }}"
+    create: yes
+  become: yes
+  become_user: "{{ khulnasoft.user }}"
+  with_dict: "{{ khulnasoft.launch }}"

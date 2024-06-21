@@ -1,0 +1,64 @@
+---
+- name: Set admin access via seed
+  when: first_run | bool
+  block:
+  - name: "Hash the password"
+    command: "{{ khulnasoft.exec }} hash-passwd {{ khulnasoft.password }}"
+    register: hashed_pwd
+    changed_when: hashed_pwd.rc == 0
+    become: yes
+    become_user: "{{ khulnasoft.user }}"
+    no_log: "{{ hide_password }}"
+
+  - name: "Generate user-seed.conf (Linux)"
+    ini_file:
+      owner: "{{ khulnasoft.user }}"
+      group: "{{ khulnasoft.group }}"
+      dest: "{{ khulnasoft.home }}/etc/system/local/user-seed.conf"
+      section: user_info
+      option: "{{ item.opt }}"
+      value: "{{ item.val }}"
+    with_items:
+      - { opt: 'USERNAME', val: '{{ khulnasoft.admin_user }}' }
+      - { opt: 'HASHED_PASSWORD', val: '{{ hashed_pwd.stdout }}' }
+    loop_control:
+      label: "{{ item.opt }}"
+    when: ansible_system is match("Linux")
+    become: yes
+    become_user: "{{ khulnasoft.user }}"
+    no_log: "{{ hide_password }}"
+
+  - name: "Delete etc/passwd if exists (Windows)"
+    file:
+      path: "{{ khulnasoft.home }}/etc/passwd"
+      state: absent
+    when: ansible_system is match("CYGWIN*|Win32NT")
+
+  - name: "Generate user-seed.conf (Windows)"
+    ini_file:
+      dest: "{{ khulnasoft.home }}/etc/system/local/user-seed.conf"
+      section: user_info
+      option: "{{ item.opt }}"
+      value: "{{ item.val }}"
+    with_items:
+      - { opt: 'USERNAME', val: '{{ khulnasoft.admin_user }}' }
+      - { opt: 'HASHED_PASSWORD', val: '{{ hashed_pwd.stdout }}' }
+    loop_control:
+      label: "{{ item.opt }}"
+    when: ansible_system is match("CYGWIN*|Win32NT")
+    no_log: "{{ hide_password }}"
+
+- name: Establish declarative admin access
+  when:
+    - "'declarative_admin_password' in khulnasoft and khulnasoft.declarative_admin_password | bool"
+    - not first_run | bool
+  block:
+  - name: Apply admin password
+    command: "{{ khulnasoft.exec }} cmd khulnasoftd rest --noauth POST /services/admin/users/{{ khulnasoft.admin_user }} 'password={{ khulnasoft.password }}'"
+    register: declarative_pw
+    changed_when: False
+    become: yes
+    become_user: "{{ khulnasoft.user }}"
+    no_log: "{{ hide_password }}"
+
+  - include_tasks: trigger_restart.yml

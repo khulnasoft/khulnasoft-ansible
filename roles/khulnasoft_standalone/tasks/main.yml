@@ -1,0 +1,56 @@
+---
+- include_tasks: ../../khulnasoft_common/tasks/set_as_hec_receiver.yml
+
+- include_tasks: ../../khulnasoft_common/tasks/add_khulnasoft_object.yml
+  when: khulnasoft.add is defined
+
+- include_tasks: ../../../roles/khulnasoft_common/tasks/set_as_deployment_client.yml
+  when:
+    - khulnasoft.deployment_server is defined
+    - khulnasoft.deployment_server
+
+- include_tasks: ../../khulnasoft_common/tasks/enable_forwarder_monitoring.yml
+  when:
+    - dmc_forwarder_monitoring is defined
+    - dmc_forwarder_monitoring | bool
+
+## Indexer Clustering Scenario
+- include_tasks: ../../khulnasoft_common/tasks/peer_cluster_master.yml
+  when:
+    - khulnasoft_indexer_cluster | bool
+    - khulnasoft.multisite_master is not defined
+    - khulnasoft.set_search_peers is defined
+    - khulnasoft.set_search_peers | bool
+
+## Non Indexer Clustering Scenario
+- include_tasks: ../../khulnasoft_common/tasks/peer_indexers.yml
+  vars:
+    idx: "{{ item }}"
+  with_items: "{{ groups['khulnasoft_indexer'] }}"
+  when:
+    - not khulnasoft_indexer_cluster | bool
+    - khulnasoft.multisite_master is not defined
+    - khulnasoft.set_search_peers is defined
+    - khulnasoft.set_search_peers | bool
+    - "'khulnasoft_indexer' in groups"
+
+- include_tasks: ../../khulnasoft_common/tasks/provision_apps.yml
+  when:
+    - "'apps_location' in khulnasoft and khulnasoft.apps_location"
+    - khulnasoft.deployment_server is not defined or not khulnasoft.deployment_server
+  vars:
+    app_list: "{{ khulnasoft.apps_location }}"
+
+- include_tasks: ../../khulnasoft_common/tasks/provision_apps.yml
+  when:
+    - "'app_paths_install' in khulnasoft and 'default' in khulnasoft.app_paths_install and khulnasoft.app_paths_install.default"
+    - khulnasoft.deployment_server is not defined or not khulnasoft.deployment_server
+  vars:
+    app_list: "{{ khulnasoft.app_paths_install.default }}"
+
+- include_tasks: ../../../roles/khulnasoft_common/tasks/enable_dfs.yml
+  when:
+    - "'dfs' in khulnasoft and 'enable' in khulnasoft.dfs and khulnasoft.dfs.enable is not none"
+    - khulnasoft.dfs.enable | bool
+
+- include_tasks: ../../khulnasoft_common/tasks/check_for_required_restarts.yml

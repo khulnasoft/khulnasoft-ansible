@@ -1,0 +1,163 @@
+---
+# this is done in 2 host sets, as we need to disable fact gathering until ansible is installed.
+- hosts: all
+  gather_facts: False
+  pre_tasks:
+    - name: Install python for Ansible
+      raw: test -e /usr/bin/python || (apt -y update && apt install -y python)
+      register: output
+      changed_when: output.stdout != ""
+    - name: install ansible
+      raw: test -e /usr/bin/ansible || (apt -y update && apt install -y ansible)
+      register: output
+      changed_when: output.stdout != ""
+
+- hosts: all
+  gather_facts: True
+  tasks:
+    - name: Wait for automatic system updates
+      shell: "while fuser /var/lib/dpkg/lock >/dev/null 2>&1; do sleep 1; done;"
+
+    - name: Install khulnasoft-ansible prereqs
+      apt:
+        name: "{{ khulnasoft_ansible_packages }}"
+      vars:
+        khulnasoft_ansible_packages:
+        - rsync
+        - tar
+        - wget
+        - net-tools
+        - curl
+        - sudo
+        - iputils-ping
+        - dnsutils
+        - ansible
+        - python-yaml
+        - python-pip
+
+    - name: Install khulnasoft-ansible pip requirements
+      pip:
+        name: 
+          - requests
+          - ansible
+
+    - name: Wait for khulnasoft-ansible updates to finish
+      shell: "while fuser /var/lib/dpkg/lock >/dev/null 2>&1; do sleep 1; done;"
+
+    - name: Wait for khulnasoft-ansible updates for frontend
+      shell: "while fuser /var/lib/dpkg/lock-frontend >/dev/null 2>&1; do sleep 1; done;"
+
+    - name: Install khulnasoft prereqs
+      apt:
+        name: "{{ khulnasoft_packages }}"
+      vars:
+        khulnasoft_packages:
+        - libgssapi-krb5-2
+        - procps
+        - acl
+        - locales
+        - gnupg
+
+    - name: Setup locales for khulnasoft
+      command: echo "en_US.UTF-8 UTF-8" > /etc/locale.gen
+
+    - name: Removing any existing locales alias
+      file:
+        path: /usr/share/locale/locale.alias
+        state: absent
+
+    - name: Link the new locales alias
+      file:
+        src: /etc/locale.alias
+        dest: /usr/share/locale/locale.alias
+        state: link
+
+    - name: Generate the new locales
+      command: locale-gen
+
+    - name: Make sure the definition is set for locales
+      command: localedef -i en_US -c -f UTF-8 -A /usr/share/locale/locale.alias en_US.UTF-8
+
+    - name: Check if user exists
+      getent:
+        database: passwd
+        key: ansible
+        fail_key: yes
+      register: user_exist
+      ignore_errors: true
+
+    - name: Setup the ansible user for khulnasoft-ansible
+      user:
+        name: ansible
+        comment: Khulnasoft-Ansible User
+        shell: /bin/bash
+        generate_ssh_key: yes
+        ssh_key_bits: 2048
+        ssh_key_file: .ssh/id_rsa
+        groups:
+          - sudo
+        state: present
+      when: user_exist["failed"] == true
+
+    - name: Check if khulnasoft user exists
+      getent:
+        database: passwd
+        key: khulnasoft
+        fail_key: yes
+      register: user_exist
+      ignore_errors: true
+
+    - name: Setup the khulnasoft user
+      user:
+        name: khulnasoft
+        comment: Khulnasoft User
+        shell: /bin/bash
+        generate_ssh_key: yes
+        ssh_key_bits: 2048
+        ssh_key_file: .ssh/id_rsa
+        state: present
+      when: user_exist["failed"] == true
+
+    - name: Setup Ansible User Sudoers
+      lineinfile:
+        path: /etc/sudoers
+        state: present
+        regexp: '^%sudo'
+        line: '%sudo ALL=(ALL:ALL) NOPASSWD: ALL'
+
+    - name: Compress khulnasoft-ansible into /tmp/khulnasoft-ansible.tgz
+      archive:
+        path: ../../khulnasoft-ansible/*
+        dest: /tmp/khulnasoft-ansible.tgz
+        exclude_path:
+        - ../wrapper-example
+      delegate_to: localhost
+
+    - name: Transfer khulnasoft-ansible from localhost to target server
+      copy:
+        src: /tmp/khulnasoft-ansible.tgz
+        dest: /tmp/khulnasoft-ansible.tgz
+
+    - name: Create khulnasoft-ansible directory
+      file:
+        state: directory
+        path: /opt/ansible
+        owner: ansible
+        group: ansible
+        # when specifying mode using octal numbers, add a leading 0
+        mode: 0755
+
+    - name: Create khulnasoft-ansible container info directory
+      file:
+        state: directory
+        path: /opt/container_artifact
+        owner: ansible
+        group: ansible
+        # when specifying mode using octal numbers, add a leading 0
+        mode: 0777
+
+    - name: Unarchive khulnasoft-ansible on remote machine
+      unarchive:
+        src: /tmp/khulnasoft-ansible.tgz
+        dest: /opt/ansible
+        remote_src: yes

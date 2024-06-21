@@ -1,0 +1,31 @@
+---
+- name: Set mgmt port
+  ini_file:
+    dest: "{{ khulnasoft.home }}/etc/system/local/web.conf"
+    section: settings
+    option: "mgmtHostPort"
+    value: "0.0.0.0:{{ khulnasoft.svc_port }}"
+    owner: "{{ khulnasoft.user }}"
+    group: "{{ khulnasoft.group }}"
+  when:
+    - "'svc_port' in khulnasoft"
+    - ansible_system is not match("CYGWIN*|Win32NT")
+  register: set_mgmt_port
+
+- name: Set mgmt port (Windows)
+  ini_file:
+    dest: "{{ khulnasoft.home }}/etc/system/local/web.conf"
+    section: settings
+    option: "mgmtHostPort"
+    value: "127.0.0.1:{{ khulnasoft.svc_port }}"
+    owner: "{{ khulnasoft.user }}"
+    group: "{{ khulnasoft.group }}"
+  when:
+    - "'svc_port' in khulnasoft"
+    - ansible_system is match("CYGWIN*|Win32NT")
+    - khulnasoft.svc_port | int != 8089
+  register: set_mgmt_port
+
+# Restart only when Khulnasoft is running and when any of the above have changed
+- include_tasks: ../handlers/restart_khulnasoft.yml
+  when: set_mgmt_port is changed

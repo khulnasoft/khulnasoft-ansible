@@ -1,0 +1,42 @@
+---
+- include_tasks: ../../../roles/khulnasoft_common/tasks/wait_for_khulnasoft_instance.yml
+  vars:
+    khulnasoft_instance_address: "{{ khulnasoft.cluster_master_url }}"
+
+# http://docs.khulnasoft.com/Documentation/Khulnasoft/latest/DistSearch/SHCandindexercluster#Integrate_with_a_single-site_indexer_cluster
+- name: Peer cluster master TCP
+  command: "{{ khulnasoft.exec }} edit cluster-config -mode searchhead -master_uri {{ cert_prefix }}://{{ khulnasoft.cluster_master_url }}:{{ khulnasoft.svc_port }} -replication_port {{ khulnasoft.idxc.replication_port }} -secret '{{ khulnasoft.idxc.pass4SymmKey }}' -auth '{{ khulnasoft.admin_user }}:{{ khulnasoft.password }}'"
+  become: yes
+  become_user: "{{ khulnasoft.user }}"
+  when: not uds_enabled | bool
+  register: peer_cluster_master
+  until: peer_cluster_master.rc == 0 or "Cannot edit this searchhead" in peer_cluster_master.stderr
+  changed_when: peer_cluster_master.rc == 0
+  failed_when: peer_cluster_master.rc != 0 and "Cannot edit this searchhead" not in peer_cluster_master.stderr
+  retries: "{{ retry_num }}"
+  delay: "{{ retry_delay }}"
+  ignore_errors: yes
+  notify:
+    - Restart the khulnasoftd service
+  no_log: "{{ hide_password }}"
+
+- name: Peer cluster master UDS
+  command: "{{ khulnasoft.exec }} edit cluster-config -mode searchhead -master_uri http+unix://{{ khulnasoft.uds_socket_path_url }} -replication_port {{ khulnasoft.idxc.replication_port }} -secret '{{ khulnasoft.idxc.pass4SymmKey }}' -auth '{{ khulnasoft.admin_user }}:{{ khulnasoft.password }}'"
+  become: yes
+  become_user: "{{ khulnasoft.user }}"
+  when: uds_enabled | bool
+  register: peer_cluster_master
+  until: peer_cluster_master.rc == 0 or "Cannot edit this searchhead" in peer_cluster_master.stderr
+  changed_when: peer_cluster_master.rc == 0
+  failed_when: peer_cluster_master.rc != 0 and "Cannot edit this searchhead" not in peer_cluster_master.stderr
+  retries: "{{ retry_num }}"
+  delay: "{{ retry_delay }}"
+  ignore_errors: yes
+  notify:
+    - Restart the khulnasoftd service
+  no_log: "{{ hide_password }}"
+
+- include_tasks: peer_aux_cluster_masters.yml
+  when:
+    - "'auxiliary_cluster_masters' in khulnasoft"
+    - khulnasoft.auxiliary_cluster_masters and khulnasoft.auxiliary_cluster_masters | length > 0

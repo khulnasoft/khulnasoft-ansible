@@ -1,0 +1,22 @@
+---
+# Setup monitoring
+# http://docs.khulnasoft.com/Documentation/Khulnasoft/latest/Data/MonitorfilesanddirectoriesusingtheCLI
+# http://docs.khulnasoft.com/Documentation/Khulnasoft/latest/Data/Monitornetworkports
+- name: Add Khulnasoft object
+  command: "{{ khulnasoft.exec }} add {{ item }} -auth {{ khulnasoft.admin_user }}:{{ khulnasoft.password }}"
+  become: yes
+  become_user: "{{ khulnasoft.user }}"
+  with_items: "{{ khulnasoft.add }}"
+  when: khulnasoft.add is defined
+  register: task_result
+  until: task_result.rc == 0 or "already exists" in task_result.stderr
+  changed_when: task_result.rc == 0
+  failed_when:
+    - task_result.rc != 0
+    - "'already exists' not in task_result.stderr"
+  retries: "{{ retry_num }}"
+  delay: "{{ retry_delay }}"
+  ignore_errors: true
+  no_log: "{{ hide_password }}"
+  notify:
+    - Restart the khulnasoftd service

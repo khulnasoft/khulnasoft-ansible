@@ -1,0 +1,12 @@
+---
+- name: "Create .ui_login"
+  file:
+    path: "{{ khulnasoft.home }}/etc/.ui_login"
+    state: touch
+    modification_time: preserve
+    access_time: preserve
+    owner: "{{ khulnasoft.user }}"
+    group: "{{ khulnasoft.group }}"
+    mode: 0660
+  become: yes
+  become_user: "{{ khulnasoft.user }}"

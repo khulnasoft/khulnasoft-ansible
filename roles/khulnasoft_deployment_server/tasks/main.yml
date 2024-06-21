@@ -1,0 +1,35 @@
+---
+- include_tasks: ../../../roles/khulnasoft_common/tasks/enable_forwarding.yml
+
+- include_tasks: ../../../roles/khulnasoft_common/tasks/extract_app.yml
+  when: "'app_paths_install' in khulnasoft and 'deployment' in khulnasoft.app_paths_install and khulnasoft.app_paths_install.deployment"
+  vars:
+    app_filepath: "{{ item }}"
+    extract_path: "{{ khulnasoft.app_paths.deployment }}"
+  loop: "{{ khulnasoft.app_paths_install.deployment }}"
+
+- include_tasks: create_deployment_apps.yml
+  when: "'apps_location' in khulnasoft and khulnasoft.apps_location"
+
+- include_tasks: ../../../roles/khulnasoft_common/tasks/provision_apps.yml
+  when:
+    - "'app_paths_install' in khulnasoft and 'default' in khulnasoft.app_paths_install and khulnasoft.app_paths_install.default"
+  vars:
+    app_list: "{{ khulnasoft.app_paths_install.default }}"
+
+- include_tasks: generate_server_classes.yml
+
+- name: Reload deployment server
+  command: "{{ khulnasoft.exec }} reload deploy-server -auth {{ khulnasoft.admin_user }}:{{ khulnasoft.password }} -timeout {{ retry_delay * retry_num }}"
+  become: yes
+  become_user: "{{ khulnasoft.user }}"
+  register: reload_depserver
+  until: reload_depserver.rc == 0
+  changed_when: reload_depserver.rc == 0
+  retries: "{{ retry_num }}"
+  delay: "{{ retry_delay }}"
+  ignore_errors: yes
+  no_log: "{{ hide_password }}"
+
+- include_tasks: ../../../roles/khulnasoft_common/tasks/check_for_required_restarts.yml
+

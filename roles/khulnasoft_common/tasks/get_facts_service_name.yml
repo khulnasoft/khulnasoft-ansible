@@ -1,0 +1,48 @@
+---
+- name: "Setting service_name fact from config"
+  set_fact:
+    khulnasoft_service_name: "{{ khulnasoft.service_name }}"
+  when:
+    - "'service_name' in khulnasoft"
+
+- name: Set Khulnasoft service name
+  block:
+    - name: Setting KhulnasoftForwarder service
+      set_fact:
+        khulnasoft_service_name: "KhulnasoftForwarder.service"
+      when:
+        - ansible_system is match("Linux")
+        - khulnasoft_systemd
+        - khulnasoft.role == "khulnasoft_universal_forwarder"
+
+    - name: Setting Khulnasoftd service
+      set_fact:
+        khulnasoft_service_name: "Khulnasoftd.service"
+      when:
+        - ansible_system is match("Linux")
+        - khulnasoft_systemd
+        - khulnasoft.role != "khulnasoft_universal_forwarder"
+
+    - name: Setting khulnasoft service
+      set_fact:
+        khulnasoft_service_name: "khulnasoft"
+      when:
+        - ansible_system is match("Linux")
+        - not khulnasoft_systemd
+
+    - name: Setting khulnasoftforwarder Windows service
+      set_fact:
+        khulnasoft_service_name: "khulnasoftforwarder"
+      when:
+        - ansible_system is not match("Linux")
+        - khulnasoft.role == "khulnasoft_universal_forwarder"
+
+    - name: Setting khulnasoftd Windows service
+      set_fact:
+        khulnasoft_service_name: "khulnasoftd"
+      when:
+        - ansible_system is not match("Linux")
+        - khulnasoft.role != "khulnasoft_universal_forwarder"
+  when:
+    - khulnasoft_service_name is not defined or not khulnasoft_service_name
+    - khulnasoft.enable_service

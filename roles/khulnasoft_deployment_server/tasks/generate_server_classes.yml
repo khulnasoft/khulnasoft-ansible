@@ -1,0 +1,36 @@
+---
+- name: Check for existing serverclass.conf
+  stat:
+    path: "{{ khulnasoft.home }}/etc/system/local/serverclass.conf"
+  register: serverclass_conf
+
+- name: Define all serverClass
+  ini_file:
+    path: "{{ khulnasoft.home }}/etc/system/local/serverclass.conf"
+    section: "serverClass:all"
+    option: whitelist.0
+    value: "*"
+    owner: "{{ khulnasoft.user }}"
+    group: "{{ khulnasoft.group }}"
+  when: not serverclass_conf.stat.exists
+
+- name: Gather all deployment server apps
+  find:
+    path: "{{ khulnasoft.app_paths.deployment }}"
+    recurse: no
+    file_type: directory
+  register: deployment_apps
+  when: not serverclass_conf.stat.exists
+
+- name: Define all:app serverClass
+  ini_file:
+    path: "{{ khulnasoft.home }}/etc/system/local/serverclass.conf"
+    section: "serverClass:all:app:{{ item.path | basename }}"
+    option: restartKhulnasoftd
+    value: "true"
+    owner: "{{ khulnasoft.user }}"
+    group: "{{ khulnasoft.group }}"
+    allow_no_value: true
+  when: not serverclass_conf.stat.exists
+  with_items: "{{ deployment_apps.files }}"
+
